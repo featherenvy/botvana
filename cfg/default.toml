@@ -1,0 +1,5 @@
+[bot_server]
+listen_address = "0.0.0.0:7978"
+
+[ws_server]
+listen_address = "0.0.0.0:7979"

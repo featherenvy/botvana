@@ -1,0 +1,2 @@
+[workspace]
+members = ["botvana", "botvana-server", "server-test", "station-egui", "botnode"]
