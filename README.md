@@ -1,8 +1,25 @@
-## Botvana trading engine
+# Botvana trading engine
 
 Botvana is a distributed, event-driven and open-source trading system built using Rust.
+The goals are to build trading engine that is:
 
-The project is still in its infancy.
+-   Fast by default: all choices made during design and development favor more
+    performant solution where it's available.
+-   Reliable: Botvana is built using Rust and leverages its ownership and type
+system, and concurency model.
+-   Easy to operate: Ease of deployment, updating and operating the platform is
+    a first class concern.
+
+Note: The project is still in its infancy.
+
+## Overview
+
+Botvana is built using these components:
+
+-   `botnode`: trading bot
+-   `Botvana-server`: coordination server
+-   `botvana`: shared definitions
+-   `station-egui`: control application
 
 ### Development Prerequisites
 
