@@ -1,8 +1,10 @@
 pub mod audit;
 pub mod control;
 pub mod engine;
+pub mod error;
 pub mod indicator;
 pub mod market_data;
+pub mod order;
 pub mod trading;
 pub mod util;
 
@@ -22,6 +24,7 @@ pub mod prelude {
     pub use tracing::{debug, error, info, warn};
 
     pub use crate::engine::*;
+    pub use crate::error::{EngineError, StartEngineError};
     pub use crate::indicator::IndicatorEvent;
     pub use crate::market_data::MarketEvent;
     pub use botvana::net::{

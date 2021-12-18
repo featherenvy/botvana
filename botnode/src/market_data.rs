@@ -1,4 +1,6 @@
+pub mod adapter;
 pub mod engine;
+pub mod error;
 pub mod exchange;
 pub mod ftx;
 pub mod market;

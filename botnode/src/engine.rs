@@ -11,41 +11,20 @@ pub enum EngineType {
     TradingEngine,
 }
 
+/// Engine trait
 #[async_trait(?Send)]
 pub trait Engine {
+    /// Data that the engine produces
     type Data;
 
     /// Start the engine loop
     async fn start(self, shutdown: Shutdown) -> Result<(), EngineError>;
 
-    fn data_rx(&self) -> RingReceiver<Self::Data>;
-}
-
-#[derive(Debug, thiserror::Error)]
-#[error("{source}")]
-pub struct EngineError {
-    source: Box<dyn std::error::Error>,
-}
-
-impl EngineError {
-    pub fn with_source<T: std::error::Error + 'static>(source: T) -> Self {
-        Self {
-            source: Box::new(source),
-        }
-    }
-}
-
-#[derive(Debug, thiserror::Error)]
-#[error("Error starting the engine: {source}")]
-pub struct StartEngineError {
-    source: Box<dyn std::error::Error>,
-}
-
-impl<T: 'static> From<glommio::GlommioError<T>> for StartEngineError {
-    fn from(err: GlommioError<T>) -> Self {
-        StartEngineError {
-            source: Box::new(err),
-        }
+    /// Returns receiver for the data engine produces
+    fn data_rx(&self) -> RingReceiver<Self::Data> {
+        let (_data_tx, data_rx) =
+            ring_channel::ring_channel::<Self::Data>(NonZeroUsize::new(1).unwrap());
+        data_rx
     }
 }
 

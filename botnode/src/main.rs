@@ -20,7 +20,8 @@ fn main() {
     start_engine(0, ControlEngine::new(bot_id, server_addr), shutdown.clone())
         .expect("failed to start control engine");
 
-    let market_data_engine = MarketDataEngine::new();
+    let ftx_adapter = botnode::market_data::ftx::Ftx {};
+    let market_data_engine = MarketDataEngine::new(ftx_adapter);
     let market_data_rx = market_data_engine.data_rx();
 
     start_engine(1, market_data_engine, shutdown.clone())

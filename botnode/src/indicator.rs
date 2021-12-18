@@ -1,6 +1,7 @@
 //! Indicator engine
 use crate::prelude::*;
 
+/// Indicator producing engine
 pub struct IndicatorEngine {
     data_tx: ring_channel::RingSender<IndicatorEvent>,
     data_rx: ring_channel::RingReceiver<IndicatorEvent>,

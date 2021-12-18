@@ -8,32 +8,36 @@ use async_std::task::sleep;
 use async_tungstenite::{async_std::connect_async, tungstenite::Message};
 // use glommio::io::{ImmutableFile, ImmutableFileBuilder, StreamWriterBuilder};
 use serde_json::json;
-use surf::Url;
 
-use crate::market_data::{ftx, Market, MarketEvent};
+use crate::market_data::{adapter::*, error::MarketDataError, ftx, MarketEvent};
 use crate::prelude::*;
 
 /// Engine that maintains connections to exchanges and produces raw market data
-pub struct MarketDataEngine {
+pub struct MarketDataEngine<A: MarketDataAdapter> {
+    adapter: A,
     data_tx: ring_channel::RingSender<MarketEvent>,
     data_rx: ring_channel::RingReceiver<MarketEvent>,
 }
 
-impl MarketDataEngine {
-    pub fn new() -> Self {
+impl<A: MarketDataAdapter> MarketDataEngine<A> {
+    pub fn new(adapter: A) -> Self {
         let (data_tx, data_rx) = ring_channel::ring_channel(NonZeroUsize::new(1024).unwrap());
-        Self { data_tx, data_rx }
+        Self {
+            data_tx,
+            data_rx,
+            adapter,
+        }
     }
 }
 
 #[async_trait(?Send)]
-impl Engine for MarketDataEngine {
+impl<A: MarketDataAdapter> Engine for MarketDataEngine<A> {
     type Data = MarketEvent;
 
     async fn start(mut self, shutdown: Shutdown) -> Result<(), EngineError> {
         info!("Starting market data engine");
 
-        match fetch_market_info().await {
+        match self.adapter.fetch_markets().await {
             Ok(markets) => {
                 self.data_tx.send(MarketEvent::Markets(markets)).unwrap();
             }
@@ -43,7 +47,7 @@ impl Engine for MarketDataEngine {
         };
 
         if let Err(e) = run_market_data_loop(self.data_tx, shutdown).await {
-            error!("MDE Error: {}", e);
+            error!("Market engine error: {}", e);
         }
 
         Ok(())
@@ -53,33 +57,6 @@ impl Engine for MarketDataEngine {
     fn data_rx(&self) -> ring_channel::RingReceiver<Self::Data> {
         self.data_rx.clone()
     }
-}
-
-pub async fn fetch_market_info() -> anyhow::Result<Box<[Market]>> {
-    let client: surf::Client = surf::Config::new()
-        .set_base_url(Url::parse("https://ftx.com")?)
-        .set_timeout(Some(Duration::from_secs(5)))
-        .try_into()?;
-
-    let mut res = client.get("/api/markets").await.unwrap();
-    let body = res.body_string().await.unwrap();
-
-    // let mut file = ImmutableFileBuilder::new(&format!("http-vcr"))
-    //     .build_sink()
-    //     .await?;
-    // file.write_all(body.as_bytes()).await.unwrap();
-    // file.seal().await;
-
-    let root = serde_json::from_slice::<ftx::rest::ResponseRoot>(body.as_bytes())?;
-    let result: &ftx::rest::ResponseResult = root.result.borrow();
-
-    let crate::market_data::ftx::rest::ResponseResult::Markets(markets) = result;
-    println!("{:?}", markets);
-
-    Ok(markets
-        .iter()
-        .filter_map(|m| Market::try_from(m.borrow()).ok())
-        .collect())
 }
 
 /// Runs the websocket loop until Shutdown signal
@@ -92,6 +69,11 @@ pub async fn run_market_data_loop(
     info!("connecting to {}", url);
     let (mut ws_stream, _) = connect_async(url).await?;
 
+    let subscribe_msg = json!({"op": "subscribe", "channel": "orderbook", "market": "BTC-PERP"});
+    ws_stream
+        .send(Message::text(subscribe_msg.to_string()))
+        .await?;
+
     let subscribe_msg = json!({"op": "subscribe", "channel": "trades", "market": "BTC-PERP"});
     ws_stream
         .send(Message::text(subscribe_msg.to_string()))
@@ -102,26 +84,8 @@ pub async fn run_market_data_loop(
             msg = ws_stream.next().fuse() => {
                 match msg {
                     Some(Ok(Message::Text(msg))) => {
-                        let start = std::time::Instant::now();
-                        let ws_msg = serde_json::from_slice::<ftx::ws::WsMsg>(msg.as_bytes());
-                        if let Ok(ws_msg) = ws_msg {
-                            let data = ws_msg.data.borrow();
-                            let ftx::ws::Data::Trades(trades) = data;
-
-                            info!("got trades = {:?}", trades);
-
-                            let trades: Vec<_> = trades
-                                .into_iter()
-                                .filter_map(|trade| crate::market_data::trade::Trade::try_from(trade).ok())
-                                .collect();
-
-                            info!("parsing took = {:?}", start.elapsed());
-
-                            market_data_tx
-                                .send(MarketEvent::Trades(trades.into_boxed_slice()))?;
-
-                        } else {
-                            warn!("error parsing: {}", msg);
+                        if let Err(e) = process_ws_msg(&msg, &mut market_data_tx) {
+                            warn!("Failed to process websocket message: {}", e);
                         }
                     }
                     Some(Ok(other)) => {
@@ -145,7 +109,52 @@ pub async fn run_market_data_loop(
     }
 }
 
-impl ToString for MarketDataEngine {
+/// Processes Websocket text message
+pub fn process_ws_msg(
+    msg: &str,
+    market_data_tx: &mut ring_channel::RingSender<MarketEvent>,
+) -> Result<(), MarketDataError> {
+    let start = std::time::Instant::now();
+    let ws_msg = serde_json::from_slice::<ftx::ws::WsMsg>(msg.as_bytes());
+
+    match ws_msg {
+        Err(e) => {
+            error!("ws_msg {}", msg);
+
+            return Err(MarketDataError {
+                source: Box::new(e),
+            });
+        }
+        Ok(ws_msg) => {
+            let data = ws_msg.data.borrow();
+            match data {
+                ftx::ws::Data::Trades(trades) => {
+                    info!("got trades = {:?}", trades);
+
+                    let trades: Vec<_> = trades
+                        .into_iter()
+                        .filter_map(|trade| crate::market_data::trade::Trade::try_from(trade).ok())
+                        .collect();
+
+                    info!("parsing took = {:?}", start.elapsed());
+
+                    market_data_tx
+                        .send(MarketEvent::Trades(trades.into_boxed_slice()))
+                        .map_err(|e| MarketDataError {
+                            source: Box::new(e),
+                        })?;
+                }
+                ftx::ws::Data::Orderbook(orderbook) => {
+                    info!("got orderbook = {:?}", orderbook);
+                }
+            }
+
+            Ok(())
+        }
+    }
+}
+
+impl<A: MarketDataAdapter> ToString for MarketDataEngine<A> {
     fn to_string(&self) -> String {
         "market-data-engine".to_string()
     }
