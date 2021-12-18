@@ -309,6 +309,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-runtime-bench"
+version = "0.1.0"
+
+[[package]]
 name = "async-session"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -616,6 +620,7 @@ dependencies = [
  "criterion",
  "futures",
  "serde",
+ "thiserror",
  "tracing",
 ]
 

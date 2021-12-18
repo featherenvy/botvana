@@ -17,7 +17,7 @@ impl Engine for AuditEngine {
     async fn start(self, shutdown: Shutdown) -> Result<(), EngineError> {
         info!("Starting audit engine");
 
-        audit_loop(shutdown).await.map_err(|_| EngineError {})
+        run_audit_loop(shutdown).await
     }
 
     /// Returns dummy data receiver
@@ -35,6 +35,6 @@ impl ToString for AuditEngine {
 }
 
 /// Audit engine loop
-pub async fn audit_loop(_shutdown: Shutdown) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn run_audit_loop(_shutdown: Shutdown) -> Result<(), EngineError> {
     loop {}
 }

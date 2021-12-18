@@ -26,9 +26,7 @@ impl Engine for TradingEngine {
     async fn start(mut self, shutdown: Shutdown) -> Result<(), EngineError> {
         info!("Starting trading engine");
 
-        run_trading_loop(self.market_data_rx, self.indicator_rx, shutdown)
-            .await
-            .map_err(|_| EngineError {})
+        run_trading_loop(self.market_data_rx, self.indicator_rx, shutdown).await
     }
 
     /// Returns dummy data receiver
@@ -50,7 +48,7 @@ pub async fn run_trading_loop(
     mut market_data_rx: RingReceiver<MarketEvent>,
     mut indicator_rx: RingReceiver<IndicatorEvent>,
     _shutdown: Shutdown,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), EngineError> {
     loop {
         match market_data_rx.try_recv() {
             Ok(event) => {

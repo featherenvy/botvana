@@ -39,8 +39,9 @@ impl Encode for BotvanaCodec {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum DecodeError {
+    #[error("Invalid frame version")]
     InvalidVersion,
 }
 

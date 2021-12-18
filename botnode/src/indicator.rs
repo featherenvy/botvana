@@ -28,9 +28,7 @@ impl Engine for IndicatorEngine {
     async fn start(self, shutdown: Shutdown) -> Result<(), EngineError> {
         info!("Starting indicator engine");
 
-        run_indicator_loop(self.market_data_rx, shutdown)
-            .await
-            .map_err(|_| EngineError {})
+        run_indicator_loop(self.market_data_rx, shutdown).await
     }
 
     fn data_rx(&self) -> RingReceiver<Self::Data> {
@@ -48,8 +46,10 @@ impl ToString for IndicatorEngine {
 pub async fn run_indicator_loop(
     mut market_data_rx: ring_channel::RingReceiver<MarketEvent>,
     shutdown: Shutdown,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let _token = shutdown.delay_shutdown_token()?;
+) -> Result<(), EngineError> {
+    let _token = shutdown
+        .delay_shutdown_token()
+        .map_err(|e| EngineError::with_source(e))?;
 
     loop {
         if shutdown.shutdown_started() {

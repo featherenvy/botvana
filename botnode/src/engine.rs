@@ -8,6 +8,7 @@ pub enum EngineType {
     AuditEngine,
     ControlEngine,
     MarketDataEngine,
+    TradingEngine,
 }
 
 #[async_trait(?Send)]
@@ -20,8 +21,33 @@ pub trait Engine {
     fn data_rx(&self) -> RingReceiver<Self::Data>;
 }
 
-#[derive(Debug)]
-pub struct EngineError {}
+#[derive(Debug, thiserror::Error)]
+#[error("{source}")]
+pub struct EngineError {
+    source: Box<dyn std::error::Error>,
+}
+
+impl EngineError {
+    pub fn with_source<T: std::error::Error + 'static>(source: T) -> Self {
+        Self {
+            source: Box::new(source),
+        }
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error("Error starting the engine: {source}")]
+pub struct StartEngineError {
+    source: Box<dyn std::error::Error>,
+}
+
+impl<T: 'static> From<glommio::GlommioError<T>> for StartEngineError {
+    fn from(err: GlommioError<T>) -> Self {
+        StartEngineError {
+            source: Box::new(err),
+        }
+    }
+}
 
 /// Starts given engine in new executor pinned to given CPU.
 ///
@@ -59,7 +85,7 @@ pub fn start_engine<E: Engine + ToString + Send + 'static>(
     cpu: usize,
     engine: E,
     shutdown: Shutdown,
-) -> Result<EngineHandle, EngineError> {
+) -> Result<EngineHandle, StartEngineError> {
     LocalExecutorBuilder::new()
         .pin_to_cpu(cpu)
         .spin_before_park(std::time::Duration::from_micros(250))
@@ -72,7 +98,7 @@ pub fn start_engine<E: Engine + ToString + Send + 'static>(
                 }
             }
         })
-        .expect("Failed to spawn thread");
+        .map_err(|e| StartEngineError::from(e))?;
 
     Ok(EngineHandle {})
 }

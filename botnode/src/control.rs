@@ -28,7 +28,7 @@ impl Engine for ControlEngine {
     async fn start(mut self, shutdown: Shutdown) -> Result<(), EngineError> {
         info!("Starting control engine");
 
-        while let Err(e) = control_loop(&mut self, shutdown.clone()).await {
+        while let Err(e) = run_control_loop(&mut self, shutdown.clone()).await {
             error!("Control engine error: {:?}", e);
             async_std::task::sleep(std::time::Duration::from_secs(1)).await;
         }
@@ -50,6 +50,12 @@ impl ToString for ControlEngine {
     }
 }
 
+#[derive(Debug, thiserror::Error)]
+#[error("{msg}")]
+pub struct ControlEngineError {
+    msg: &'static str,
+}
+
 #[derive(Clone, PartialEq)]
 enum BotnodeStatus {
     Connecting,
@@ -61,16 +67,19 @@ enum BotnodeStatus {
 ///
 /// This connects to Botvana server on a given address, sends the Hello
 /// message and runs the loop.
-async fn control_loop(control: &mut ControlEngine, shutdown: Shutdown) -> Result<(), EngineError> {
+async fn run_control_loop(
+    control: &mut ControlEngine,
+    shutdown: Shutdown,
+) -> Result<(), EngineError> {
     let _token = shutdown
         .delay_shutdown_token()
-        .map_err(|_| EngineError {})?;
+        .map_err(|e| EngineError::with_source(e))?;
 
     control.status = BotnodeStatus::Connecting;
 
     let stream = TcpStream::connect(control.server_addr.clone())
         .await
-        .map_err(|_| EngineError {})?;
+        .map_err(|e| EngineError::with_source(e))?;
 
     let mut framed = Framed::new(stream, BotvanaCodec);
 
@@ -95,11 +104,13 @@ async fn control_loop(control: &mut ControlEngine, shutdown: Shutdown) -> Result
                     }
                     Some(Err(e)) => {
                         error!("Botvana connection error: {:?}", e);
-                        return Err(EngineError {});
+                        return Err(EngineError::with_source(e));
                     }
                     None => {
-                        error!("disconnected from botvana");
-                        return Err(EngineError {});
+                        error!("disconnected from botvana-server");
+                        return Err(EngineError::with_source(ControlEngineError {
+                            msg: "Disconnected from botvana-server"
+                        }));
                     }
                 }
             }
