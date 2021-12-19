@@ -56,9 +56,7 @@ fn load_configuration() -> (BotId, String) {
 
     info!("bot_id = {}", bot_id.0);
 
-    let server_addr = var("SERVER_ADDR")
-        .expect("Please specify SERVER_ADDR")
-        .to_string();
+    let server_addr = var("SERVER_ADDR").expect("Please specify SERVER_ADDR");
 
     (bot_id, server_addr)
 }

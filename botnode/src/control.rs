@@ -73,13 +73,13 @@ async fn run_control_loop(
 ) -> Result<(), EngineError> {
     let _token = shutdown
         .delay_shutdown_token()
-        .map_err(|e| EngineError::with_source(e))?;
+        .map_err(EngineError::with_source)?;
 
     control.status = BotnodeStatus::Connecting;
 
     let stream = TcpStream::connect(control.server_addr.clone())
         .await
-        .map_err(|e| EngineError::with_source(e))?;
+        .map_err(EngineError::with_source)?;
 
     let mut framed = Framed::new(stream, BotvanaCodec);
 

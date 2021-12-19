@@ -34,6 +34,7 @@ impl<A: MarketDataAdapter> MarketDataEngine<A> {
 impl<A: MarketDataAdapter> Engine for MarketDataEngine<A> {
     type Data = MarketEvent;
 
+    /// Start the market data engine
     async fn start(mut self, shutdown: Shutdown) -> Result<(), EngineError> {
         info!("Starting market data engine");
 
@@ -121,9 +122,9 @@ pub fn process_ws_msg(
         Err(e) => {
             error!("ws_msg {}", msg);
 
-            return Err(MarketDataError {
+            Err(MarketDataError {
                 source: Box::new(e),
-            });
+            })
         }
         Ok(ws_msg) => {
             let data = ws_msg.data.borrow();
@@ -132,8 +133,8 @@ pub fn process_ws_msg(
                     info!("got trades = {:?}", trades);
 
                     let trades: Vec<_> = trades
-                        .into_iter()
-                        .filter_map(|trade| crate::market_data::trade::Trade::try_from(trade).ok())
+                        .iter()
+                        .filter_map(|trade| botvana::market::trade::Trade::try_from(trade).ok())
                         .collect();
 
                     info!("parsing took = {:?}", start.elapsed());

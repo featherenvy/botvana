@@ -77,7 +77,7 @@ pub fn start_engine<E: Engine + ToString + Send + 'static>(
                 }
             }
         })
-        .map_err(|e| StartEngineError::from(e))?;
+        .map_err(StartEngineError::from)?;
 
     Ok(EngineHandle {})
 }

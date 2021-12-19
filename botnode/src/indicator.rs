@@ -50,7 +50,7 @@ pub async fn run_indicator_loop(
 ) -> Result<(), EngineError> {
     let _token = shutdown
         .delay_shutdown_token()
-        .map_err(|e| EngineError::with_source(e))?;
+        .map_err(EngineError::with_source)?;
 
     loop {
         if shutdown.shutdown_started() {

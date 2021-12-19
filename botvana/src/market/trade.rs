@@ -1,3 +1,5 @@
+//! Trade
+
 use chrono::{DateTime, Utc};
 
 #[derive(Clone, Debug)]

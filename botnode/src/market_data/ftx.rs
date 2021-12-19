@@ -22,12 +22,10 @@ impl MarketDataAdapter for Ftx {
 
     async fn fetch_markets(&self) -> Result<Box<[Market]>, MarketDataError> {
         let client: surf::Client = surf::Config::new()
-            .set_base_url(
-                Url::parse("https://ftx.com").map_err(|e| MarketDataError::with_source(e))?,
-            )
+            .set_base_url(Url::parse("https://ftx.com").map_err(MarketDataError::with_source)?)
             .set_timeout(Some(Duration::from_secs(5)))
             .try_into()
-            .map_err(|e| MarketDataError::with_source(e))?;
+            .map_err(MarketDataError::with_source)?;
 
         let mut res = client.get("/api/markets").await.unwrap();
         let body = res.body_string().await.unwrap();
@@ -39,7 +37,7 @@ impl MarketDataAdapter for Ftx {
         // file.seal().await;
 
         let root = serde_json::from_slice::<rest::ResponseRoot>(body.as_bytes())
-            .map_err(|e| MarketDataError::with_source(e))?;
+            .map_err(MarketDataError::with_source)?;
         let result: &rest::ResponseResult = root.result.borrow();
 
         let rest::ResponseResult::Markets(markets) = result;
@@ -102,24 +100,22 @@ pub mod rest {
         //pub volume_usd24h: Option<f64>,
     }
 
-    impl<'a> TryFrom<&'a MarketInfo<'a>> for crate::market_data::market::Market {
+    impl<'a> TryFrom<&'a MarketInfo<'a>> for botvana::market::Market {
         type Error = String;
 
         fn try_from(market: &'a MarketInfo<'a>) -> Result<Self, Self::Error> {
             let r#type = match market.r#type {
-                "spot" => crate::market_data::market::MarketType::Spot(
-                    crate::market_data::market::SpotMarket {
-                        base: market
-                            .base_currency
-                            .ok_or_else(|| "Missing base currency".to_string())?
-                            .to_string(),
-                        quote: market
-                            .quote_currency
-                            .ok_or_else(|| "Missing quote currency".to_string())?
-                            .to_string(),
-                    },
-                ),
-                "future" => crate::market_data::market::MarketType::Futures,
+                "spot" => botvana::market::MarketType::Spot(botvana::market::SpotMarket {
+                    base: market
+                        .base_currency
+                        .ok_or_else(|| "Missing base currency".to_string())?
+                        .to_string(),
+                    quote: market
+                        .quote_currency
+                        .ok_or_else(|| "Missing quote currency".to_string())?
+                        .to_string(),
+                }),
+                "future" => botvana::market::MarketType::Futures,
                 _ => return Err(format!("Invalid market type: {}", market.r#type)),
             };
 
@@ -145,8 +141,6 @@ pub mod ws {
     use std::borrow::Cow;
 
     use serde::Deserialize;
-
-    use crate::market_data::trade::TradesVec;
 
     /// FTX Websocket message
     #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -190,7 +184,7 @@ pub mod ws {
         pub time: &'a str,
     }
 
-    impl<'a> TryFrom<&Trade<'a>> for crate::market_data::trade::Trade {
+    impl<'a> TryFrom<&Trade<'a>> for botvana::market::trade::Trade {
         type Error = String;
 
         fn try_from(trade: &Trade<'a>) -> Result<Self, Self::Error> {
@@ -203,15 +197,6 @@ pub mod ws {
                     .parse()
                     .map_err(|_| format!("error parsing: {}", trade.time))?,
             })
-        }
-    }
-
-    impl<'a> TryFrom<Vec<Trade<'a>>> for crate::market_data::trade::TradesVec {
-        type Error = String;
-
-        fn try_from(trades: Vec<Trade<'a>>) -> Result<Self, Self::Error> {
-            let vec = TradesVec::with_capacity(trades.len());
-            Ok(vec)
         }
     }
 }

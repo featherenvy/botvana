@@ -617,6 +617,7 @@ dependencies = [
  "async-codec",
  "async-std",
  "bincode",
+ "chrono",
  "criterion",
  "futures",
  "serde",

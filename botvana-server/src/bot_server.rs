@@ -45,7 +45,7 @@ pub async fn handle_connection(
                             global_state.remove_bot(conn_bot_id).await;
                         }
 
-                        if let None = frame {
+                        if frame.is_none() {
                             return Ok(())
                         } else {
                             return Err(BotServerError::ReadError)
