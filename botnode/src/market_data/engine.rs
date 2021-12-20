@@ -15,17 +15,19 @@ use crate::prelude::*;
 /// Engine that maintains connections to exchanges and produces raw market data
 pub struct MarketDataEngine<A: MarketDataAdapter> {
     adapter: A,
-    data_tx: ring_channel::RingSender<MarketEvent>,
-    data_rx: ring_channel::RingReceiver<MarketEvent>,
+    config_rx: RingReceiver<BotConfiguration>,
+    data_tx: RingSender<MarketEvent>,
+    data_rx: RingReceiver<MarketEvent>,
 }
 
 impl<A: MarketDataAdapter> MarketDataEngine<A> {
-    pub fn new(adapter: A) -> Self {
+    pub fn new(config_rx: RingReceiver<BotConfiguration>, adapter: A) -> Self {
         let (data_tx, data_rx) = ring_channel::ring_channel(NonZeroUsize::new(1024).unwrap());
         Self {
+            adapter,
+            config_rx,
             data_tx,
             data_rx,
-            adapter,
         }
     }
 }
@@ -47,7 +49,10 @@ impl<A: MarketDataAdapter> Engine for MarketDataEngine<A> {
             }
         };
 
-        if let Err(e) = run_market_data_loop(self.data_tx, shutdown).await {
+        let config = self.config_rx.recv().map_err(EngineError::with_source)?;
+        let markets = config.market_data.into_boxed_slice();
+
+        if let Err(e) = run_market_data_loop(markets, self.data_tx, shutdown).await {
             error!("Market engine error: {}", e);
         }
 
@@ -62,6 +67,7 @@ impl<A: MarketDataAdapter> Engine for MarketDataEngine<A> {
 
 /// Runs the websocket loop until Shutdown signal
 pub async fn run_market_data_loop(
+    markets: Box<[String]>,
     mut market_data_tx: ring_channel::RingSender<MarketEvent>,
     shutdown: Shutdown,
 ) -> anyhow::Result<()> {
@@ -70,15 +76,17 @@ pub async fn run_market_data_loop(
     info!("connecting to {}", url);
     let (mut ws_stream, _) = connect_async(url).await?;
 
-    let subscribe_msg = json!({"op": "subscribe", "channel": "orderbook", "market": "BTC-PERP"});
-    ws_stream
-        .send(Message::text(subscribe_msg.to_string()))
-        .await?;
+    for market in markets.iter() {
+        let subscribe_msg = json!({"op": "subscribe", "channel": "orderbook", "market": market});
+        ws_stream
+            .send(Message::text(subscribe_msg.to_string()))
+            .await?;
 
-    let subscribe_msg = json!({"op": "subscribe", "channel": "trades", "market": "BTC-PERP"});
-    ws_stream
-        .send(Message::text(subscribe_msg.to_string()))
-        .await?;
+        let subscribe_msg = json!({"op": "subscribe", "channel": "trades", "market": market});
+        ws_stream
+            .send(Message::text(subscribe_msg.to_string()))
+            .await?;
+    }
 
     loop {
         futures::select! {

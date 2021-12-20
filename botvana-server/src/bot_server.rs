@@ -4,15 +4,17 @@ use async_codec::Framed;
 use async_std::net::ToSocketAddrs;
 use futures::prelude::*;
 use futures::stream::StreamExt;
-use glommio::{enclose, net::TcpListener, sync::Semaphore, Task};
-use glommio::{net::TcpStream, timer::sleep};
+use glommio::{enclose, net::TcpListener, net::TcpStream, sync::Semaphore, timer::sleep, Task};
 use tracing::{debug, error, info, warn};
 
-use botvana::net::{
-    codec,
-    msg::{BotConfiguration, BotId, Message, PeerBot},
+use botvana::{
+    cfg::{BotConfiguration, PeerBot},
+    net::{
+        codec,
+        msg::{BotId, Message},
+    },
+    state,
 };
-use botvana::state;
 
 const ACTIVITY_TIMEOUT_SECS: u64 = 15;
 
@@ -111,6 +113,7 @@ pub async fn process_bot_message(
             let out_msg = Message::BotConfiguration(BotConfiguration {
                 bot_id: bot_id.clone(),
                 peer_bots,
+                market_data: vec!["ETH/USD".to_string()],
             });
 
             stream

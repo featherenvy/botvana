@@ -4,6 +4,8 @@ use std::time::SystemTime;
 
 use serde::{Deserialize, Serialize};
 
+use crate::cfg::BotConfiguration;
+
 /// Botvana protocol message
 #[derive(Serialize, Deserialize, Debug)]
 pub enum Message {
@@ -76,21 +78,6 @@ impl BotMetadata {
     }
 }
 
-/// Configuration for botnode
-///
-/// This configuration is sent to the bot after
-/// receiving correct `Hello` message.
-#[derive(Serialize, Deserialize, Debug)]
-pub struct BotConfiguration {
-    pub bot_id: BotId,
-    pub peer_bots: Vec<PeerBot>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct PeerBot {
-    pub bot_id: BotId,
-}
-
 /// Enum of possible errors reported by botnode
 #[derive(Serialize, Deserialize, Debug)]
 pub enum BotError {
@@ -112,6 +99,7 @@ mod tests {
         let hello = Message::Hello(BotId(0), BotMetadata::new(1));
         let encoded = bincode::serialize(&hello).unwrap();
         let decoded: Message = bincode::deserialize(&encoded).unwrap();
+
         match decoded {
             Message::Hello(BotId(bot_id), BotMetadata { bot_version }) => {
                 assert_eq!(bot_id, 0);
@@ -128,9 +116,11 @@ mod tests {
         let hello = Message::BotConfiguration(BotConfiguration {
             bot_id: BotId(1),
             peer_bots: vec![],
+            market_data: vec!["BTC/USD".to_string()],
         });
         let encoded = bincode::serialize(&hello).unwrap();
         let decoded: Message = bincode::deserialize(&encoded).unwrap();
+
         match decoded {
             Message::BotConfiguration(BotConfiguration { bot_id, .. }) => {
                 assert_eq!(bot_id.0, 1);

@@ -17,11 +17,13 @@ fn main() {
 
     let shutdown = Shutdown::new();
 
-    start_engine(0, ControlEngine::new(bot_id, server_addr), shutdown.clone())
-        .expect("failed to start control engine");
+    let control_engine = ControlEngine::new(bot_id, server_addr);
+    let config_rx = control_engine.data_rx();
+
+    start_engine(0, control_engine, shutdown.clone()).expect("failed to start control engine");
 
     let ftx_adapter = botnode::market_data::ftx::Ftx {};
-    let market_data_engine = MarketDataEngine::new(ftx_adapter);
+    let market_data_engine = MarketDataEngine::new(config_rx.clone(), ftx_adapter);
     let market_data_rx = market_data_engine.data_rx();
 
     start_engine(1, market_data_engine, shutdown.clone())

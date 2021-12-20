@@ -11,6 +11,7 @@ pub struct Trade {
     pub received_at: std::time::Instant,
 }
 
+/// Columnar struct of trades
 pub struct TradesVec {
     pub prices: Vec<f64>,
     pub sizes: Vec<f64>,

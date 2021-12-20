@@ -27,9 +27,12 @@ pub mod prelude {
     pub use crate::error::{EngineError, StartEngineError};
     pub use crate::indicator::IndicatorEvent;
     pub use crate::market_data::MarketEvent;
-    pub use botvana::net::{
-        codec::BotvanaCodec,
-        msg::{BotId, Message},
+    pub use botvana::{
+        cfg::BotConfiguration,
+        net::{
+            codec::BotvanaCodec,
+            msg::{BotId, Message},
+        },
     };
 
     pub type DynBoxError = Box<dyn std::error::Error>;
