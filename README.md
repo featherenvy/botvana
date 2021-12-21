@@ -23,7 +23,7 @@ Botvana is split into these components:
 
 ### botnode
 
-Botnode is Botvana's trading bot. Botnode uses thread-per-core architecture where
+`botnode` is Botvana's trading bot. Botnode uses thread-per-core architecture where
 each thread is pinned to exactly one unique CPU core. Each thread/CPU core runs
 different engine with custom event loop. Data is sent between engines using ring
 channels and no state is shared between the threads.
