@@ -30,9 +30,8 @@ impl Engine for TradingEngine {
     }
 
     /// Returns dummy data receiver
-    fn data_rx(&self) -> ring_channel::RingReceiver<Self::Data> {
-        let (_data_tx, data_rx) =
-            ring_channel::ring_channel::<()>(NonZeroUsize::new(1024).unwrap());
+    fn data_rx(&self) -> RingReceiver<Self::Data> {
+        let (_data_tx, data_rx) = ring_channel::<()>(NonZeroUsize::new(1024).unwrap());
         data_rx
     }
 }

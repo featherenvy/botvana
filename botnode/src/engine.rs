@@ -22,8 +22,7 @@ pub trait Engine {
 
     /// Returns receiver for the data engine produces
     fn data_rx(&self) -> RingReceiver<Self::Data> {
-        let (_data_tx, data_rx) =
-            ring_channel::ring_channel::<Self::Data>(NonZeroUsize::new(1).unwrap());
+        let (_data_tx, data_rx) = ring_channel::<Self::Data>(NonZeroUsize::new(1).unwrap());
         data_rx
     }
 }
@@ -45,9 +44,9 @@ pub trait Engine {
 ///         Ok(())
 ///     }
 ///
-///     fn data_rx(&self) -> ring_channel::RingReceiver<Self::Data> {
+///     fn data_rx(&self) -> RingReceiver<Self::Data> {
 ///         let (_data_tx, data_rx) =
-///            ring_channel::ring_channel::<()>(NonZeroUsize::new(1024).unwrap());
+///            ring_channel::<()>(NonZeroUsize::new(1024).unwrap());
 ///         data_rx
 ///     }
 /// }

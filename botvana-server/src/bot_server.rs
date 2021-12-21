@@ -114,6 +114,7 @@ pub async fn process_bot_message(
                 bot_id: bot_id.clone(),
                 peer_bots,
                 market_data: vec!["ETH/USD".to_string()],
+                indicators: vec![],
             });
 
             stream

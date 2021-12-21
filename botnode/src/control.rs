@@ -8,20 +8,18 @@ pub struct ControlEngine {
     server_addr: String,
     status: BotnodeStatus,
     ping_interval: std::time::Duration,
-    bot_configuration: Option<BotConfiguration>,
     config_rx: RingReceiver<BotConfiguration>,
     config_tx: RingSender<BotConfiguration>,
 }
 
 impl ControlEngine {
     pub fn new<T: ToString>(bot_id: BotId, server_addr: T) -> Self {
-        let (config_tx, config_rx) = ring_channel::ring_channel(NonZeroUsize::new(14).unwrap());
+        let (config_tx, config_rx) = ring_channel(NonZeroUsize::new(14).unwrap());
         Self {
             bot_id,
             server_addr: server_addr.to_string(),
             status: BotnodeStatus::Offline,
             ping_interval: std::time::Duration::from_secs(5),
-            bot_configuration: None,
             config_rx,
             config_tx,
         }
@@ -44,7 +42,7 @@ impl Engine for ControlEngine {
     }
 
     /// Returns dummy data receiver
-    fn data_rx(&self) -> ring_channel::RingReceiver<Self::Data> {
+    fn data_rx(&self) -> RingReceiver<Self::Data> {
         self.config_rx.clone()
     }
 }

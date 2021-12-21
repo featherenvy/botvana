@@ -22,7 +22,7 @@ pub struct MarketDataEngine<A: MarketDataAdapter> {
 
 impl<A: MarketDataAdapter> MarketDataEngine<A> {
     pub fn new(config_rx: RingReceiver<BotConfiguration>, adapter: A) -> Self {
-        let (data_tx, data_rx) = ring_channel::ring_channel(NonZeroUsize::new(1024).unwrap());
+        let (data_tx, data_rx) = ring_channel(NonZeroUsize::new(1024).unwrap());
         Self {
             adapter,
             config_rx,
@@ -60,7 +60,7 @@ impl<A: MarketDataAdapter> Engine for MarketDataEngine<A> {
     }
 
     /// Returns cloned market event receiver
-    fn data_rx(&self) -> ring_channel::RingReceiver<Self::Data> {
+    fn data_rx(&self) -> RingReceiver<Self::Data> {
         self.data_rx.clone()
     }
 }
@@ -68,7 +68,7 @@ impl<A: MarketDataAdapter> Engine for MarketDataEngine<A> {
 /// Runs the websocket loop until Shutdown signal
 pub async fn run_market_data_loop(
     markets: Box<[String]>,
-    mut market_data_tx: ring_channel::RingSender<MarketEvent>,
+    mut market_data_tx: RingSender<MarketEvent>,
     shutdown: Shutdown,
 ) -> anyhow::Result<()> {
     let _token = shutdown.delay_shutdown_token()?;
@@ -121,7 +121,7 @@ pub async fn run_market_data_loop(
 /// Processes Websocket text message
 pub fn process_ws_msg(
     msg: &str,
-    market_data_tx: &mut ring_channel::RingSender<MarketEvent>,
+    market_data_tx: &mut RingSender<MarketEvent>,
 ) -> Result<(), MarketDataError> {
     let start = std::time::Instant::now();
     let ws_msg = serde_json::from_slice::<ftx::ws::WsMsg>(msg.as_bytes());

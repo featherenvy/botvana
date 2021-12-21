@@ -3,20 +3,27 @@ use crate::prelude::*;
 
 /// Indicator producing engine
 pub struct IndicatorEngine {
-    data_tx: ring_channel::RingSender<IndicatorEvent>,
-    data_rx: ring_channel::RingReceiver<IndicatorEvent>,
-    market_data_rx: ring_channel::RingReceiver<MarketEvent>,
+    config_rx: RingReceiver<BotConfiguration>,
+    data_tx: RingSender<IndicatorEvent>,
+    data_rx: RingReceiver<IndicatorEvent>,
+    indicators_config: Box<[IndicatorConfig]>,
+    market_data_rx: RingReceiver<MarketEvent>,
 }
 
 #[derive(Debug)]
 pub enum IndicatorEvent {}
 
 impl IndicatorEngine {
-    pub fn new(market_data_rx: ring_channel::RingReceiver<MarketEvent>) -> Self {
-        let (data_tx, data_rx) = ring_channel::ring_channel(NonZeroUsize::new(1024).unwrap());
+    pub fn new(
+        config_rx: RingReceiver<BotConfiguration>,
+        market_data_rx: RingReceiver<MarketEvent>,
+    ) -> Self {
+        let (data_tx, data_rx) = ring_channel(NonZeroUsize::new(1024).unwrap());
         Self {
+            config_rx,
             data_tx,
             data_rx,
+            indicators_config: Box::new([]),
             market_data_rx,
         }
     }
@@ -26,8 +33,11 @@ impl IndicatorEngine {
 impl Engine for IndicatorEngine {
     type Data = IndicatorEvent;
 
-    async fn start(self, shutdown: Shutdown) -> Result<(), EngineError> {
+    async fn start(mut self, shutdown: Shutdown) -> Result<(), EngineError> {
         info!("Starting indicator engine");
+
+        let config = self.config_rx.recv().map_err(EngineError::with_source)?;
+        self.indicators_config = config.indicators.into_boxed_slice();
 
         run_indicator_loop(self.market_data_rx, shutdown).await
     }
@@ -45,7 +55,7 @@ impl ToString for IndicatorEngine {
 
 /// Indicator engine loop
 pub async fn run_indicator_loop(
-    mut market_data_rx: ring_channel::RingReceiver<MarketEvent>,
+    mut market_data_rx: RingReceiver<MarketEvent>,
     shutdown: Shutdown,
 ) -> Result<(), EngineError> {
     let _token = shutdown
@@ -58,6 +68,7 @@ pub async fn run_indicator_loop(
 
             break Ok(());
         }
+
         match market_data_rx.try_recv() {
             Ok(event) => {
                 //info!("market_event = {:?}", event);

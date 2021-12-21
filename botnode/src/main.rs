@@ -29,7 +29,7 @@ fn main() {
     start_engine(1, market_data_engine, shutdown.clone())
         .expect("failed to start market data engine");
 
-    let indicator_engine = IndicatorEngine::new(market_data_rx.clone());
+    let indicator_engine = IndicatorEngine::new(config_rx.clone(), market_data_rx.clone());
     let indicator_rx = indicator_engine.data_rx();
 
     start_engine(2, indicator_engine, shutdown.clone()).expect("failed to start indicator engine");
