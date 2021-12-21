@@ -5,5 +5,4 @@ members = [
 	"server-test",
 	"station-egui",
 	"botnode",
-	"research/async-runtime-bench"
 ]
