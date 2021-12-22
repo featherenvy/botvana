@@ -24,9 +24,20 @@ Botvana is split into these components:
 ### botnode
 
 `botnode` is Botvana's trading bot. Botnode uses thread-per-core architecture where
-each thread is pinned to exactly one unique CPU core. Each thread/CPU core runs
-different engine with custom event loop. Data is sent between engines using ring
+each thread is pinned to exactly one unique CPU core. Each CPU core runs different
+engine with custom event loop. Data is sent between engines using ring
 channels and no state is shared between the threads.
+
+Botnode has these engines:
+
+- Control engine: connects to `botvana-server` and provides configuration for
+  other engines
+- Market data engine: connects to the exchange and transforms market data to
+  Botvana's internal types.
+- Indicator engine: provides indicators built from market data
+- Trading engine: makes trading decisions
+- Order engine: acts as order router and gateway
+- Audit engine: audits trading activity
 
 ### botvana-server
 
@@ -47,7 +58,11 @@ In order to work with Botvana you need to have:
     ```sh
     git clone https://github.com/featherenvy/botvana.git
     ```
-2.  Build all components
+2.  Install dependencies required to compile `egui`
+    ```sh
+    sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev
+    ```
+3.  Build all components
     ```sh
     cargo build
     ```
