@@ -10,6 +10,7 @@ pub struct ControlEngine {
     ping_interval: std::time::Duration,
     config_rx: RingReceiver<BotConfiguration>,
     config_tx: RingSender<BotConfiguration>,
+    bot_configuration: Option<BotConfiguration>,
 }
 
 impl ControlEngine {
@@ -22,6 +23,7 @@ impl ControlEngine {
             ping_interval: std::time::Duration::from_secs(5),
             config_rx,
             config_tx,
+            bot_configuration: None,
         }
     }
 }
@@ -32,6 +34,8 @@ impl Engine for ControlEngine {
 
     async fn start(mut self, shutdown: Shutdown) -> Result<(), EngineError> {
         info!("Starting control engine");
+
+        async_std::task::sleep(std::time::Duration::from_secs(1)).await;
 
         while let Err(e) = run_control_loop(&mut self, shutdown.clone()).await {
             error!("Control engine error: {:?}", e);
@@ -94,6 +98,7 @@ async fn run_control_loop(
     loop {
         futures::select! {
             msg = framed.next().fuse() => {
+                debug!("msg = {:?}", msg);
                 match msg {
                     Some(Ok(msg)) => {
                         if matches!(
@@ -108,6 +113,8 @@ async fn run_control_loop(
                         match msg {
                             Message::BotConfiguration(bot_config) => {
                                 debug!("config = {:?}", bot_config);
+
+                                control.bot_configuration = Some(bot_config.clone());
 
                                 control.config_tx.send(bot_config)
                                     .map_err(EngineError::with_source)?;

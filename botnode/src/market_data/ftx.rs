@@ -41,7 +41,6 @@ impl MarketDataAdapter for Ftx {
         let result: &rest::ResponseResult = root.result.borrow();
 
         let rest::ResponseResult::Markets(markets) = result;
-        println!("{:?}", markets);
 
         Ok(markets
             .iter()

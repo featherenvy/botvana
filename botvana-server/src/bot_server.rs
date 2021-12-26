@@ -109,13 +109,13 @@ pub async fn process_bot_message(
                 bots.len()
             );
 
-            debug!("Sending bot configuration {:?}", peer_bots);
             let out_msg = Message::BotConfiguration(BotConfiguration {
                 bot_id: bot_id.clone(),
                 peer_bots,
                 market_data: vec!["ETH/USD".to_string()],
                 indicators: vec![],
             });
+            info!("Sending bot configuration {:?}", out_msg);
 
             stream
                 .send(out_msg)

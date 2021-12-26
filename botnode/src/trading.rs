@@ -1,4 +1,5 @@
 //! Trading engine
+
 use crate::prelude::*;
 
 /// Trading engine
@@ -51,7 +52,7 @@ pub async fn run_trading_loop(
     loop {
         match market_data_rx.try_recv() {
             Ok(event) => {
-                info!("market data = {:?}", event);
+                //info!("market data = {:?}", event);
             }
             Err(TryRecvError::Empty) => continue,
             Err(TryRecvError::Disconnected) => break Ok(()),

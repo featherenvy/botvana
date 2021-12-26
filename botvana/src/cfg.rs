@@ -7,7 +7,7 @@ use crate::net::msg::BotId;
 ///
 /// This configuration is sent to the bot after
 /// receiving correct `Hello` message.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct BotConfiguration {
     pub bot_id: BotId,
     pub peer_bots: Vec<PeerBot>,
@@ -15,12 +15,12 @@ pub struct BotConfiguration {
     pub indicators: Vec<IndicatorConfig>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct PeerBot {
     pub bot_id: BotId,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum IndicatorConfig {
     Midprice,
 }

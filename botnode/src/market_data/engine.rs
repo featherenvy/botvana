@@ -1,5 +1,6 @@
 //! Market Data Engine
 use std::borrow::Borrow;
+use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::num::NonZeroUsize;
 use std::time::Duration;
@@ -49,11 +50,14 @@ impl<A: MarketDataAdapter> Engine for MarketDataEngine<A> {
             }
         };
 
+        debug!("Waiting for configuration");
         let config = self.config_rx.recv().map_err(EngineError::with_source)?;
+        debug!("Got config = {:?}", config);
         let markets = config.market_data.into_boxed_slice();
 
+        info!("Running loop w/ markets = {:?}", markets);
         if let Err(e) = run_market_data_loop(markets, self.data_tx, shutdown).await {
-            error!("Market engine error: {}", e);
+            error!("Error running loop: {}", e);
         }
 
         Ok(())
@@ -77,6 +81,8 @@ pub async fn run_market_data_loop(
     let (mut ws_stream, _) = connect_async(url).await?;
 
     for market in markets.iter() {
+        info!("Subscribing for {}", market);
+
         let subscribe_msg = json!({"op": "subscribe", "channel": "orderbook", "market": market});
         ws_stream
             .send(Message::text(subscribe_msg.to_string()))
@@ -88,12 +94,17 @@ pub async fn run_market_data_loop(
             .await?;
     }
 
+    let mut markets: HashMap<String, PlainOrderbook<_>> = markets
+        .into_iter()
+        .map(|m| (m.clone(), PlainOrderbook::with_capacity(100)))
+        .collect();
+
     loop {
         futures::select! {
             msg = ws_stream.next().fuse() => {
                 match msg {
                     Some(Ok(Message::Text(msg))) => {
-                        if let Err(e) = process_ws_msg(&msg, &mut market_data_tx) {
+                        if let Err(e) = process_ws_msg(&msg, &mut market_data_tx, &mut markets) {
                             warn!("Failed to process websocket message: {}", e);
                         }
                     }
@@ -122,6 +133,7 @@ pub async fn run_market_data_loop(
 pub fn process_ws_msg(
     msg: &str,
     market_data_tx: &mut RingSender<MarketEvent>,
+    markets: &mut HashMap<String, PlainOrderbook<f64>>,
 ) -> Result<(), MarketDataError> {
     let start = std::time::Instant::now();
     let ws_msg = serde_json::from_slice::<ftx::ws::WsMsg>(msg.as_bytes());
@@ -153,8 +165,27 @@ pub fn process_ws_msg(
                             source: Box::new(e),
                         })?;
                 }
-                ftx::ws::Data::Orderbook(orderbook) => {
-                    info!("got orderbook = {:?}", orderbook);
+                ftx::ws::Data::Orderbook(orderbook_msg) => {
+                    match orderbook_msg.action {
+                        "partial" => {
+                            let orderbook = PlainOrderbook {
+                                bids: PriceLevelsVec::from_tuples_vec(orderbook_msg.bids.to_vec()),
+                                asks: PriceLevelsVec::from_tuples_vec(orderbook_msg.asks.to_vec()),
+                            };
+                            info!("orderbook = {:?}", orderbook);
+                            markets.insert(ws_msg.market.unwrap().to_string(), orderbook);
+                        }
+                        "update" => {
+                            let mut orderbook = markets.get_mut(ws_msg.market.unwrap()).unwrap();
+                            orderbook.update(
+                                &PriceLevelsVec::from_tuples_vec(orderbook_msg.bids.to_vec()),
+                                &PriceLevelsVec::from_tuples_vec(orderbook_msg.asks.to_vec()),
+                            );
+                        }
+                        _ => {}
+                    }
+
+                    //info!("got orderbook = {:?}", orderbook);
                 }
             }
 

@@ -15,22 +15,29 @@ pub mod prelude {
     pub use async_trait::async_trait;
     pub use chrono::{DateTime, Utc};
     pub use futures::prelude::*;
-    pub use glommio::{net::TcpStream, prelude::*, LocalExecutor, LocalExecutorBuilder};
+    pub use glommio::{
+        channels::shared_channel::{self, *},
+        net::TcpStream,
+        prelude::*,
+        LocalExecutor, LocalExecutorBuilder,
+    };
     pub use ring_channel::*;
     pub use std::num::NonZeroUsize;
     pub use tracing::{debug, error, info, warn};
 
-    pub use crate::engine::*;
-    pub use crate::error::{EngineError, StartEngineError};
-    pub use crate::indicator::IndicatorEvent;
-    pub use crate::market_data::MarketEvent;
     pub use botvana::{
         cfg::{BotConfiguration, IndicatorConfig},
+        market::orderbook::{PlainOrderbook, PriceLevelsVec, UpdateOrderbook},
         net::{
             codec::BotvanaCodec,
             msg::{BotId, Message},
         },
     };
+
+    pub use crate::engine::*;
+    pub use crate::error::{EngineError, StartEngineError};
+    pub use crate::indicator::IndicatorEvent;
+    pub use crate::market_data::MarketEvent;
 
     pub type DynBoxError = Box<dyn std::error::Error>;
 }

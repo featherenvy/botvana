@@ -37,6 +37,7 @@ impl Engine for IndicatorEngine {
         info!("Starting indicator engine");
 
         let config = self.config_rx.recv().map_err(EngineError::with_source)?;
+        debug!("config = {:?}", config);
         self.indicators_config = config.indicators.into_boxed_slice();
 
         run_indicator_loop(self.market_data_rx, shutdown).await

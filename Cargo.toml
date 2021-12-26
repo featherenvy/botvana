@@ -1,8 +1,10 @@
 [workspace]
 members = [
+	"botnode",
 	"botvana",
 	"botvana-server",
+	"research/async-runtime-bench",
+	"research/engine-channels-bench",
 	"server-test",
 	"station-egui",
-	"botnode",
 ]

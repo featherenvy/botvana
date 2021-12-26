@@ -117,7 +117,7 @@ mod tests {
             bot_id: BotId(1),
             peer_bots: vec![],
             market_data: vec!["BTC/USD".to_string()],
-            indicators: vec![]
+            indicators: vec![],
         });
         let encoded = bincode::serialize(&hello).unwrap();
         let decoded: Message = bincode::deserialize(&encoded).unwrap();

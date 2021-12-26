@@ -13,5 +13,6 @@ use botvana::market::{trade::Trade, Market};
 pub enum MarketEvent {
     Markets(Box<[Market]>),
     Trades(Box<[Trade]>),
+    OrderbookUpdate,
     MidPriceChange(f64, f64),
 }
