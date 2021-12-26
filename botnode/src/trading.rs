@@ -4,14 +4,14 @@ use crate::prelude::*;
 
 /// Trading engine
 pub struct TradingEngine {
-    market_data_rx: RingReceiver<MarketEvent>,
-    indicator_rx: RingReceiver<IndicatorEvent>,
+    market_data_rx: spsc_queue::Consumer<MarketEvent>,
+    indicator_rx: spsc_queue::Consumer<IndicatorEvent>,
 }
 
 impl TradingEngine {
     pub fn new(
-        market_data_rx: RingReceiver<MarketEvent>,
-        indicator_rx: RingReceiver<IndicatorEvent>,
+        market_data_rx: spsc_queue::Consumer<MarketEvent>,
+        indicator_rx: spsc_queue::Consumer<IndicatorEvent>,
     ) -> Self {
         Self {
             market_data_rx,
@@ -31,8 +31,8 @@ impl Engine for TradingEngine {
     }
 
     /// Returns dummy data receiver
-    fn data_rx(&self) -> RingReceiver<Self::Data> {
-        let (_data_tx, data_rx) = ring_channel::<()>(NonZeroUsize::new(1024).unwrap());
+    fn data_rx(&mut self) -> spsc_queue::Consumer<Self::Data> {
+        let (_data_tx, data_rx) = spsc_queue::make::<()>(1024);
         data_rx
     }
 }
@@ -45,25 +45,17 @@ impl ToString for TradingEngine {
 
 /// Trading engine loop
 pub async fn run_trading_loop(
-    mut market_data_rx: RingReceiver<MarketEvent>,
-    mut indicator_rx: RingReceiver<IndicatorEvent>,
+    market_data_rx: spsc_queue::Consumer<MarketEvent>,
+    indicator_rx: spsc_queue::Consumer<IndicatorEvent>,
     _shutdown: Shutdown,
 ) -> Result<(), EngineError> {
     loop {
-        match market_data_rx.try_recv() {
-            Ok(event) => {
-                //info!("market data = {:?}", event);
-            }
-            Err(TryRecvError::Empty) => continue,
-            Err(TryRecvError::Disconnected) => break Ok(()),
+        if let Some(event) = market_data_rx.try_pop() {
+            info!("market data = {:?}", event);
         }
 
-        match indicator_rx.try_recv() {
-            Ok(event) => {
-                info!("indicator = {:?}", event);
-            }
-            Err(TryRecvError::Empty) => continue,
-            Err(TryRecvError::Disconnected) => break Ok(()),
+        if let Some(event) = indicator_rx.try_pop() {
+            info!("indicator = {:?}", event);
         }
     }
 }

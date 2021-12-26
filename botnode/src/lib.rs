@@ -10,6 +10,7 @@ pub mod util;
 
 /// Useful prelude for implementing botnode engines
 pub mod prelude {
+    pub use arrayvec::ArrayVec;
     pub use async_codec::Framed;
     pub use async_shutdown::Shutdown;
     pub use async_trait::async_trait;
@@ -17,11 +18,11 @@ pub mod prelude {
     pub use futures::prelude::*;
     pub use glommio::{
         channels::shared_channel::{self, *},
+        channels::spsc_queue,
         net::TcpStream,
         prelude::*,
         LocalExecutor, LocalExecutorBuilder,
     };
-    pub use ring_channel::*;
     pub use std::num::NonZeroUsize;
     pub use tracing::{debug, error, info, warn};
 

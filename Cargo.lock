@@ -593,6 +593,7 @@ name = "botnode"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "arrayvec 0.7.2",
  "async-channel",
  "async-codec",
  "async-h1",
@@ -607,12 +608,12 @@ dependencies = [
  "futures",
  "glommio",
  "http-types",
- "ring-channel 0.9.0",
  "serde",
  "serde_json",
  "signal-hook 0.3.13",
  "signal-hook-async-std",
  "simd-json",
+ "snmalloc-rs",
  "surf",
  "thiserror",
  "tracing",
@@ -794,6 +795,15 @@ checksum = "9fdf5e01086b6be750428ba4a40619f847eb2e95756eee84b18e06e5f0b50342"
 dependencies = [
  "lazy-bytes-cast",
  "winapi 0.3.9",
+]
+
+[[package]]
+name = "cmake"
+version = "0.1.46"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b7b858541263efe664aead4a5209a4ae5c5d2811167d4ed4ee0944503f8d2089"
+dependencies = [
+ "cc",
 ]
 
 [[package]]
@@ -1450,7 +1460,7 @@ dependencies = [
  "async-trait",
  "criterion",
  "glommio",
- "ring-channel 0.10.0",
+ "ring-channel",
  "thiserror",
  "tracing",
 ]
@@ -3105,20 +3115,6 @@ dependencies = [
 
 [[package]]
 name = "ring-channel"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c9cf571aa3c009bb9fec87e775642e26be2eddd65e806269f4cff39086a56e3"
-dependencies = [
- "crossbeam-queue",
- "crossbeam-utils",
- "derivative",
- "futures",
- "smallvec",
- "spinning_top",
-]
-
-[[package]]
-name = "ring-channel"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bca72e0e1c8f70373401aca8f14c5c103b1360e4b6470ec02cd483a1bec6f0c4"
@@ -3594,6 +3590,24 @@ checksum = "610b551bd25378bfd2b8e7a0fcbd83d427e8f2f6a40c47ae0f70688e9949dd55"
 dependencies = [
  "smithay-client-toolkit 0.15.2",
  "wayland-client 0.29.1",
+]
+
+[[package]]
+name = "snmalloc-rs"
+version = "0.2.28"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36acaace2719c972eab3ef6a6b3aee4495f0bf300f59715bb9cff6c5acf4ae20"
+dependencies = [
+ "snmalloc-sys",
+]
+
+[[package]]
+name = "snmalloc-sys"
+version = "0.2.28"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "35a7e6e7d5fe756bee058ddedefc7e0a9f9c8dbaa9401b48ed3c17d6578e40b5"
+dependencies = [
+ "cmake",
 ]
 
 [[package]]

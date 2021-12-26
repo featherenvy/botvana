@@ -12,6 +12,9 @@ use tracing_subscriber::{fmt, EnvFilter};
 use botnode::{audit::*, control::*, engine::*, indicator::*, market_data::*, trading::*};
 use botvana::net::msg::BotId;
 
+#[global_allocator]
+static ALLOC: snmalloc_rs::SnMalloc = snmalloc_rs::SnMalloc;
+
 fn main() {
     tracing_subscriber::registry()
         .with(EnvFilter::from_default_env())
@@ -24,16 +27,16 @@ fn main() {
 
     // Stage 1: create the engines & wire them up
 
-    let control_engine = ControlEngine::new(bot_id, server_addr);
+    let mut control_engine = ControlEngine::new(bot_id, server_addr);
 
     let ftx_adapter = botnode::market_data::ftx::Ftx {};
-    let market_data_engine = MarketDataEngine::new(control_engine.data_rx(), ftx_adapter);
-    let market_data_rx = market_data_engine.data_rx();
+    let mut market_data_engine = MarketDataEngine::new(control_engine.data_rx(), ftx_adapter);
 
-    let indicator_engine = IndicatorEngine::new(control_engine.data_rx(), market_data_rx.clone());
-    let indicator_rx = indicator_engine.data_rx();
+    let mut indicator_engine =
+        IndicatorEngine::new(control_engine.data_rx(), market_data_engine.data_rx());
 
-    let trading_engine = TradingEngine::new(market_data_rx, indicator_rx);
+    let trading_engine =
+        TradingEngine::new(market_data_engine.data_rx(), indicator_engine.data_rx());
 
     // Stage 2: start the negines
 

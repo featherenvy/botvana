@@ -1,28 +1,27 @@
 //! Indicator engine
 use crate::prelude::*;
 
+const CONSUMER_LIMIT: usize = 16;
+
 /// Indicator producing engine
 pub struct IndicatorEngine {
-    config_rx: RingReceiver<BotConfiguration>,
-    data_tx: RingSender<IndicatorEvent>,
-    data_rx: RingReceiver<IndicatorEvent>,
+    config_rx: spsc_queue::Consumer<BotConfiguration>,
+    data_txs: ArrayVec<spsc_queue::Producer<IndicatorEvent>, CONSUMER_LIMIT>,
     indicators_config: Box<[IndicatorConfig]>,
-    market_data_rx: RingReceiver<MarketEvent>,
+    market_data_rx: spsc_queue::Consumer<MarketEvent>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum IndicatorEvent {}
 
 impl IndicatorEngine {
     pub fn new(
-        config_rx: RingReceiver<BotConfiguration>,
-        market_data_rx: RingReceiver<MarketEvent>,
+        config_rx: spsc_queue::Consumer<BotConfiguration>,
+        market_data_rx: spsc_queue::Consumer<MarketEvent>,
     ) -> Self {
-        let (data_tx, data_rx) = ring_channel(NonZeroUsize::new(1024).unwrap());
         Self {
             config_rx,
-            data_tx,
-            data_rx,
+            data_txs: ArrayVec::<_, CONSUMER_LIMIT>::new(),
             indicators_config: Box::new([]),
             market_data_rx,
         }
@@ -36,15 +35,21 @@ impl Engine for IndicatorEngine {
     async fn start(mut self, shutdown: Shutdown) -> Result<(), EngineError> {
         info!("Starting indicator engine");
 
-        let config = self.config_rx.recv().map_err(EngineError::with_source)?;
+        let config = await_configuration(self.config_rx);
         debug!("config = {:?}", config);
         self.indicators_config = config.indicators.into_boxed_slice();
 
         run_indicator_loop(self.market_data_rx, shutdown).await
     }
 
-    fn data_rx(&self) -> RingReceiver<Self::Data> {
-        self.data_rx.clone()
+    fn data_txs(&self) -> &[spsc_queue::Producer<Self::Data>] {
+        &self.data_txs
+    }
+
+    fn data_rx(&mut self) -> spsc_queue::Consumer<Self::Data> {
+        let (data_tx, data_rx) = spsc_queue::make(1);
+        self.data_txs.push(data_tx);
+        data_rx
     }
 }
 
@@ -56,7 +61,7 @@ impl ToString for IndicatorEngine {
 
 /// Indicator engine loop
 pub async fn run_indicator_loop(
-    mut market_data_rx: RingReceiver<MarketEvent>,
+    market_data_rx: spsc_queue::Consumer<MarketEvent>,
     shutdown: Shutdown,
 ) -> Result<(), EngineError> {
     let _token = shutdown
@@ -70,15 +75,11 @@ pub async fn run_indicator_loop(
             break Ok(());
         }
 
-        match market_data_rx.try_recv() {
-            Ok(event) => {
-                //info!("market_event = {:?}", event);
-                if let Err(e) = process_market_event(event) {
-                    error!("Failed to process market event: {}", e);
-                }
+        if let Some(event) = market_data_rx.try_pop() {
+            info!("market_event = {:?}", event);
+            if let Err(e) = process_market_event(event) {
+                error!("Failed to process market event: {}", e);
             }
-            Err(TryRecvError::Empty) => continue,
-            Err(TryRecvError::Disconnected) => break Ok(()),
         }
     }
 }

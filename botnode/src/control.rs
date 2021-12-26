@@ -1,5 +1,7 @@
 use crate::prelude::*;
 
+const CONSUMER_LIMIT: usize = 16;
+
 /// Control engine for Botnode
 ///
 /// The control engine maintains the connection to Botvana server.
@@ -8,21 +10,18 @@ pub struct ControlEngine {
     server_addr: String,
     status: BotnodeStatus,
     ping_interval: std::time::Duration,
-    config_rx: RingReceiver<BotConfiguration>,
-    config_tx: RingSender<BotConfiguration>,
+    config_txs: ArrayVec<spsc_queue::Producer<BotConfiguration>, CONSUMER_LIMIT>,
     bot_configuration: Option<BotConfiguration>,
 }
 
 impl ControlEngine {
     pub fn new<T: ToString>(bot_id: BotId, server_addr: T) -> Self {
-        let (config_tx, config_rx) = ring_channel(NonZeroUsize::new(14).unwrap());
         Self {
             bot_id,
             server_addr: server_addr.to_string(),
             status: BotnodeStatus::Offline,
             ping_interval: std::time::Duration::from_secs(5),
-            config_rx,
-            config_tx,
+            config_txs: ArrayVec::<_, CONSUMER_LIMIT>::new(),
             bot_configuration: None,
         }
     }
@@ -46,8 +45,14 @@ impl Engine for ControlEngine {
     }
 
     /// Returns dummy data receiver
-    fn data_rx(&self) -> RingReceiver<Self::Data> {
-        self.config_rx.clone()
+    fn data_rx(&mut self) -> spsc_queue::Consumer<Self::Data> {
+        let (config_tx, config_rx) = spsc_queue::make(1);
+        self.config_txs.push(config_tx);
+        config_rx
+    }
+
+    fn data_txs(&self) -> &[spsc_queue::Producer<Self::Data>] {
+        self.config_txs.as_slice()
     }
 }
 
@@ -116,8 +121,7 @@ async fn run_control_loop(
 
                                 control.bot_configuration = Some(bot_config.clone());
 
-                                control.config_tx.send(bot_config)
-                                    .map_err(EngineError::with_source)?;
+                                control.push_value(bot_config);
                             }
                             _ => {}
                         }
