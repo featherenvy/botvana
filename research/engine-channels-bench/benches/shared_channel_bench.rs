@@ -292,5 +292,5 @@ pub fn channel_bench(c: &mut Criterion) {
     });
 }
 
-criterion_group!ebenches, channel_bench);
+criterion_group!(benches, channel_bench);
 criterion_main!(benches);
