@@ -46,66 +46,66 @@ impl<A: MarketDataAdapter> MarketDataEngine<A> {
         }
     }
 
-/// Runs the websocket loop until Shutdown signal
-async fn run_exchange_connection_loop(
-    &mut self,
-    markets: &Box<[String]>,
-    shutdown: &Shutdown,
-) -> anyhow::Result<Option<MarketEvent>> {
-    let _token = shutdown.delay_shutdown_token()?;
-    let url = "wss://ftx.com/ws";
-    info!("connecting to {}", url);
-    let (mut ws_stream, _) = connect_async(url).await?;
+    /// Runs the websocket loop until Shutdown signal
+    async fn run_exchange_connection_loop(
+        &mut self,
+        markets: &Box<[String]>,
+        shutdown: &Shutdown,
+    ) -> anyhow::Result<Option<MarketEvent>> {
+        let _token = shutdown.delay_shutdown_token()?;
+        let url = "wss://ftx.com/ws";
+        info!("connecting to {}", url);
+        let (mut ws_stream, _) = connect_async(url).await?;
 
-    for market in markets.iter() {
-        info!("Subscribing for {}", market);
+        for market in markets.iter() {
+            info!("Subscribing for {}", market);
 
-        let subscribe_msg = json!({"op": "subscribe", "channel": "orderbook", "market": market});
-        ws_stream
-            .send(Message::text(subscribe_msg.to_string()))
-            .await?;
+            let subscribe_msg =
+                json!({"op": "subscribe", "channel": "orderbook", "market": market});
+            ws_stream
+                .send(Message::text(subscribe_msg.to_string()))
+                .await?;
 
-        let subscribe_msg = json!({"op": "subscribe", "channel": "trades", "market": market});
-        ws_stream
-            .send(Message::text(subscribe_msg.to_string()))
-            .await?;
-    }
+            let subscribe_msg = json!({"op": "subscribe", "channel": "trades", "market": market});
+            ws_stream
+                .send(Message::text(subscribe_msg.to_string()))
+                .await?;
+        }
 
-    let mut markets: HashMap<String, PlainOrderbook<_>> = markets
-        .into_iter()
-        .map(|m| (m.clone(), PlainOrderbook::with_capacity(100)))
-        .collect();
+        let mut markets: HashMap<String, PlainOrderbook<_>> = markets
+            .into_iter()
+            .map(|m| (m.clone(), PlainOrderbook::with_capacity(100)))
+            .collect();
 
-    loop {
-        futures::select! {
-            msg = ws_stream.next().fuse() => {
-                match msg {
-                    Some(Ok(Message::Text(msg))) => {
-                        match process_ws_msg(&msg, &mut markets) {
-                            Ok(event) => self.push_value(event),
-                            Err(e) => warn!("Failed to process websocket message: {}", e)
+        loop {
+            futures::select! {
+                msg = ws_stream.next().fuse() => {
+                    match msg {
+                        Some(Ok(Message::Text(msg))) => {
+                            match process_ws_msg(&msg, &mut markets) {
+                                Ok(event) => self.push_value(event),
+                                Err(e) => warn!("Failed to process websocket message: {}", e)
+                            }
+                        }
+                        Some(Ok(other)) => {
+                            warn!(
+                                reason = "unexpected-websocket-message",
+                                msg = &*other.to_string()
+                                );
+                        }
+                        None | Some(Err(_)) => {
+                            error!(reason = "disconnected");
+                            break Ok(None)
                         }
                     }
-                    Some(Ok(other)) => {
-                        warn!(
-                            reason = "unexpected-websocket-message",
-                            msg = &*other.to_string()
-                            );
-                    }
-                    None | Some(Err(_)) => {
-                        error!(reason = "disconnected");
-                        break Ok(None)
-                    }
                 }
-            }
-            _ = shutdown.wait_shutdown_triggered().fuse() => {
-                info!("Market data engine shutting down");
-                break Ok(None);
+                _ = shutdown.wait_shutdown_triggered().fuse() => {
+                    info!("Market data engine shutting down");
+                    break Ok(None);
+                }
             }
         }
     }
-}
-
 }
 
 #[async_trait(?Send)]
