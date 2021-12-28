@@ -11,3 +11,9 @@ impl MarketDataError {
         }
     }
 }
+
+#[derive(Debug, thiserror::Error)]
+#[error("Unknown variant: {variant}")]
+pub struct UnknownVariantError {
+    pub variant: String,
+}

@@ -6,13 +6,21 @@ pub mod ftx;
 
 pub use engine::*;
 
-use botvana::market::{trade::Trade, Market};
+use chrono::{DateTime, Utc};
+
+use botvana::market::{orderbook::PlainOrderbook, trade::Trade, Market};
 
 /// Market event enum produced by market data engine
 #[derive(Clone, Debug)]
-pub enum MarketEvent {
+pub struct MarketEvent {
+    pub r#type: MarketEventType,
+    timestamp: DateTime<Utc>,
+}
+
+#[derive(Clone, Debug)]
+pub enum MarketEventType {
     Markets(Box<[Market]>),
     Trades(Box<[Trade]>),
-    OrderbookUpdate,
+    OrderbookUpdate(Box<[PlainOrderbook<f64>]>),
     MidPriceChange(f64, f64),
 }

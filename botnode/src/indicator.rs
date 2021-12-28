@@ -76,7 +76,7 @@ pub async fn run_indicator_loop(
         }
 
         if let Some(event) = market_data_rx.try_pop() {
-            info!("market_event = {:?}", event);
+            //info!("market_event = {:?}", event);
             if let Err(e) = process_market_event(event) {
                 error!("Failed to process market event: {}", e);
             }
@@ -85,14 +85,28 @@ pub async fn run_indicator_loop(
 }
 
 pub fn process_market_event(event: MarketEvent) -> Result<(), DynBoxError> {
-    match event {
-        MarketEvent::Trades(trades) => {
+    match event.r#type {
+        MarketEventType::Markets(markets) => {
+            info!("Received {} markets", markets.len());
+        }
+        MarketEventType::Trades(trades) => {
             if !trades.is_empty() {
                 let diff = trades[0].received_at.elapsed();
                 info!("core latency = {} us", diff.as_micros());
             }
         }
-        _ => {}
+        MarketEventType::OrderbookUpdate(orderbooks) => {
+            for orderbook in orderbooks.iter() {
+                info!(
+                    "{}/{}",
+                    orderbook.bids.price_vec.last().unwrap(),
+                    orderbook.asks.price_vec[0]
+                )
+            }
+        }
+        MarketEventType::MidPriceChange(bid, ask) => {
+            info!("Received {}/{} bid/ask", bid, ask);
+        }
     }
     Ok(())
 }

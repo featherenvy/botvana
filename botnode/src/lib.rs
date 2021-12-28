@@ -38,7 +38,7 @@ pub mod prelude {
     pub use crate::engine::*;
     pub use crate::error::{EngineError, StartEngineError};
     pub use crate::indicator::IndicatorEvent;
-    pub use crate::market_data::MarketEvent;
+    pub use crate::market_data::{MarketEvent, MarketEventType};
 
     pub type DynBoxError = Box<dyn std::error::Error>;
 }

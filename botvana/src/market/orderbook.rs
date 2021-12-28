@@ -67,9 +67,14 @@ impl<T> PriceLevelsVec<T> {
     }
 
     /// Returns new `PriceLevelsVec` built from given Vec of price and size tuple
-    pub fn from_tuples_vec(data: Vec<(T, T)>) -> Self {
+    pub fn from_tuples_vec(mut data: Vec<(T, T)>) -> Self
+    where
+        T: PartialOrd,
+    {
         let mut price_vec = Vec::with_capacity(data.len());
         let mut size_vec = Vec::with_capacity(data.len());
+
+        data.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
 
         data.into_iter().for_each(|(price, size)| {
             price_vec.push(price);

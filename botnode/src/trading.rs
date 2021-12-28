@@ -50,8 +50,8 @@ pub async fn run_trading_loop(
     _shutdown: Shutdown,
 ) -> Result<(), EngineError> {
     loop {
-        if let Some(event) = market_data_rx.try_pop() {
-            info!("market data = {:?}", event);
+        if let Some(_event) = market_data_rx.try_pop() {
+            //info!("market data = {:?}", event);
         }
 
         if let Some(event) = indicator_rx.try_pop() {
