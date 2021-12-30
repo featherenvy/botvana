@@ -112,7 +112,7 @@ pub async fn process_bot_message(
             let out_msg = Message::BotConfiguration(BotConfiguration {
                 bot_id: bot_id.clone(),
                 peer_bots,
-                market_data: vec!["ETH/USD".to_string()],
+                market_data: vec![Box::from("BTC/USD"), Box::from("ETH/USD")],
                 indicators: vec![],
             });
             info!("Sending bot configuration {:?}", out_msg);

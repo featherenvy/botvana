@@ -116,7 +116,7 @@ mod tests {
         let hello = Message::BotConfiguration(BotConfiguration {
             bot_id: BotId(1),
             peer_bots: vec![],
-            market_data: vec!["BTC/USD".to_string()],
+            market_data: vec![Box::from("BTC/USD")],
             indicators: vec![],
         });
         let encoded = bincode::serialize(&hello).unwrap();

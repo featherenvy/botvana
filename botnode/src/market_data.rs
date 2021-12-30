@@ -20,7 +20,7 @@ pub struct MarketEvent {
 #[derive(Clone, Debug)]
 pub enum MarketEventType {
     Markets(Box<[Market]>),
-    Trades(Box<[Trade]>),
-    OrderbookUpdate(Box<[PlainOrderbook<f64>]>),
-    MidPriceChange(f64, f64),
+    Trades(Box<str>, Box<[Trade]>),
+    OrderbookUpdate(Box<str>, Box<PlainOrderbook<f64>>),
+    MidPriceChange(Box<str>, f64, f64),
 }

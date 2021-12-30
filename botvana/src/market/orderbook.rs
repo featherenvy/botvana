@@ -5,13 +5,20 @@ use rust_decimal::prelude::*;
 /// Trait representing an orderbook API
 pub trait UpdateOrderbook<T> {
     fn update(&mut self, bids: &PriceLevelsVec<T>, asks: &PriceLevelsVec<T>);
+    fn update_with_timestamp(
+        &mut self,
+        bids: &PriceLevelsVec<T>,
+        asks: &PriceLevelsVec<T>,
+        timestamp: f64,
+    );
 }
 
 /// Plain orderbook with bids and asks
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct PlainOrderbook<T> {
     pub bids: PriceLevelsVec<T>,
     pub asks: PriceLevelsVec<T>,
+    pub time: f64,
 }
 
 impl<T> PlainOrderbook<T> {
@@ -19,6 +26,7 @@ impl<T> PlainOrderbook<T> {
         Self {
             bids: PriceLevelsVec::new(),
             asks: PriceLevelsVec::new(),
+            time: 0.0,
         }
     }
 
@@ -26,6 +34,7 @@ impl<T> PlainOrderbook<T> {
         Self {
             bids: PriceLevelsVec::with_capacity(cap),
             asks: PriceLevelsVec::with_capacity(cap),
+            time: 0.0,
         }
     }
 }
@@ -35,6 +44,17 @@ impl UpdateOrderbook<f64> for PlainOrderbook<f64> {
         self.bids.update(bids);
         self.asks.update(asks);
     }
+
+    fn update_with_timestamp(
+        &mut self,
+        bids: &PriceLevelsVec<f64>,
+        asks: &PriceLevelsVec<f64>,
+        time: f64,
+    ) {
+        self.bids.update(bids);
+        self.asks.update(asks);
+        self.time = time;
+    }
 }
 
 impl UpdateOrderbook<Decimal> for PlainOrderbook<Decimal> {
@@ -42,10 +62,21 @@ impl UpdateOrderbook<Decimal> for PlainOrderbook<Decimal> {
         self.bids.update(bids);
         self.asks.update(asks);
     }
+
+    fn update_with_timestamp(
+        &mut self,
+        bids: &PriceLevelsVec<Decimal>,
+        asks: &PriceLevelsVec<Decimal>,
+        time: f64,
+    ) {
+        self.bids.update(bids);
+        self.asks.update(asks);
+        self.time = time;
+    }
 }
 
 /// Columnar struct of price levels
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct PriceLevelsVec<T> {
     pub price_vec: Vec<T>,
     pub size_vec: Vec<T>,
@@ -67,18 +98,26 @@ impl<T> PriceLevelsVec<T> {
     }
 
     /// Returns new `PriceLevelsVec` built from given Vec of price and size tuple
-    pub fn from_tuples_vec(mut data: Vec<(T, T)>) -> Self
+    pub fn from_tuples_vec_unsorted(data: &mut [(T, T)]) -> Self
     where
-        T: PartialOrd,
+        T: PartialOrd + Clone + Copy,
+    {
+        data.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+
+        Self::from_tuples_vec(data)
+    }
+
+    /// Returns new `PriceLevelsVec` built from given Vec of price and size tuple
+    pub fn from_tuples_vec(data: &[(T, T)]) -> Self
+    where
+        T: PartialOrd + Clone + Copy,
     {
         let mut price_vec = Vec::with_capacity(data.len());
         let mut size_vec = Vec::with_capacity(data.len());
 
-        data.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
-
         data.into_iter().for_each(|(price, size)| {
-            price_vec.push(price);
-            size_vec.push(size);
+            price_vec.push(*price);
+            size_vec.push(*size);
         });
 
         PriceLevelsVec {
@@ -155,18 +194,51 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_empty_update_price_levels_vec() {
+    fn test_from_tuples_vec_empty() {
         let mut price_levels = PriceLevelsVec::<f64>::new();
         price_levels.update(&PriceLevelsVec::new());
     }
 
     #[test]
-    fn test_update_empty_price_levels_vec() {
+    fn test_from_tuples_vec_unsorted() {
+        let price_levels = PriceLevelsVec::<f64>::from_tuples_vec_unsorted(&mut [
+            (1400.0, 0.25),
+            (1000.0, 0.3),
+            (1250.0, 0.4),
+        ]);
+
+        assert_eq!(price_levels.price_vec[0], 1000.0);
+        assert_eq!(price_levels.price_vec[1], 1250.0);
+        assert_eq!(price_levels.price_vec[2], 1400.0);
+        assert_eq!(price_levels.size_vec[0], 0.3);
+        assert_eq!(price_levels.size_vec[1], 0.4);
+        assert_eq!(price_levels.size_vec[2], 0.25);
+    }
+
+    #[test]
+    fn test_update_from_empty() {
         let mut price_levels = PriceLevelsVec::<f64>::new();
-        price_levels.update(&PriceLevelsVec::from_tuples_vec(vec![
+        price_levels.update(&PriceLevelsVec::from_tuples_vec(&[
             (1000.0, 0.3),
             (1250.0, 0.4),
             (1400.0, 0.25),
+        ]));
+
+        assert_eq!(price_levels.price_vec[0], 1000.0);
+        assert_eq!(price_levels.price_vec[1], 1250.0);
+        assert_eq!(price_levels.price_vec[2], 1400.0);
+        assert_eq!(price_levels.size_vec[0], 0.3);
+        assert_eq!(price_levels.size_vec[1], 0.4);
+        assert_eq!(price_levels.size_vec[2], 0.25);
+    }
+
+    #[test]
+    fn test_update_unsorted_from_empty() {
+        let mut price_levels = PriceLevelsVec::<f64>::new();
+        price_levels.update(&PriceLevelsVec::from_tuples_vec(&[
+            (1400.0, 0.25),
+            (1000.0, 0.3),
+            (1250.0, 0.4),
         ]));
 
         assert_eq!(price_levels.price_vec[0], 1000.0);
@@ -180,7 +252,7 @@ mod tests {
             price_vec: vec![13.0, 13.05, 13.1],
             size_vec: vec![120.0, 90.0, 20.0],
         };
-        price_levels.update(&PriceLevelsVec::from_tuples_vec(vec![
+        price_levels.update(&PriceLevelsVec::from_tuples_vec(&[
             (13.0, 0.0),
             (13.05, 0.0),
             (13.1, 0.0),
@@ -196,7 +268,7 @@ mod tests {
             price_vec: vec![13.0, 13.05, 13.1],
             size_vec: vec![120.0, 90.0, 20.0],
         };
-        price_levels.update(&PriceLevelsVec::from_tuples_vec(vec![
+        price_levels.update(&PriceLevelsVec::from_tuples_vec(&[
             (13.0, 0.0),
             (13.02, 120.0),
             (13.01, 270.0),

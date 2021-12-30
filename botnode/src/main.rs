@@ -1,11 +1,12 @@
 use std::env::var;
+use std::panic;
 
 use async_shutdown::Shutdown;
 use futures::prelude::*;
 use glommio::LocalExecutor;
 use signal_hook::consts::signal::*;
 use signal_hook_async_std::Signals;
-use tracing::info;
+use tracing::{debug, error, info};
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt, EnvFilter};
 
@@ -25,6 +26,16 @@ fn main() {
 
     let shutdown = Shutdown::new();
 
+    {
+        let shutdown = shutdown.clone();
+
+        panic::set_hook(Box::new(move |p| {
+            error!("Panic coming from one of the threads, exiting");
+            debug!("panic = {:?}", p);
+            shutdown.shutdown();
+        }));
+    }
+
     // Stage 1: create the engines & wire them up
 
     let mut control_engine = ControlEngine::new(bot_id, server_addr);
@@ -38,7 +49,7 @@ fn main() {
     let trading_engine =
         TradingEngine::new(market_data_engine.data_rx(), indicator_engine.data_rx());
 
-    // Stage 2: start the negines
+    // Stage 2: start the engines
 
     start_engine(4, AuditEngine::new(), shutdown.clone()).expect("failed to start audit engine");
 

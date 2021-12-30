@@ -59,6 +59,29 @@ impl ToString for IndicatorEngine {
     }
 }
 
+#[derive(Debug, Default)]
+struct IndicatorState {
+    symbols_vec: Vec<Box<str>>,
+    tob_vec: Vec<(f64, f64)>,
+    timestamp_vec: Vec<f64>,
+}
+
+impl IndicatorState {
+    fn update_tob(&mut self, time: f64, market_symbol: Box<str>, bid: f64, ask: f64) {
+        match self.symbols_vec.iter().position(|s| *s == market_symbol) {
+            Some(pos) => {
+                *self.tob_vec.get_mut(pos).unwrap() = (bid, ask);
+                *self.timestamp_vec.get_mut(pos).unwrap() = time;
+            }
+            None => {
+                self.tob_vec.push((bid, ask));
+                self.timestamp_vec.push(time);
+                self.symbols_vec.push(market_symbol);
+            }
+        }
+    }
+}
+
 /// Indicator engine loop
 pub async fn run_indicator_loop(
     market_data_rx: spsc_queue::Consumer<MarketEvent>,
@@ -67,6 +90,8 @@ pub async fn run_indicator_loop(
     let _token = shutdown
         .delay_shutdown_token()
         .map_err(EngineError::with_source)?;
+
+    let mut indicator_state = IndicatorState::default();
 
     loop {
         if shutdown.shutdown_started() {
@@ -77,35 +102,43 @@ pub async fn run_indicator_loop(
 
         if let Some(event) = market_data_rx.try_pop() {
             //info!("market_event = {:?}", event);
-            if let Err(e) = process_market_event(event) {
+            if let Err(e) = process_market_event(event, &mut indicator_state) {
                 error!("Failed to process market event: {}", e);
             }
         }
     }
 }
 
-pub fn process_market_event(event: MarketEvent) -> Result<(), DynBoxError> {
+fn process_market_event(
+    event: MarketEvent,
+    indicator_state: &mut IndicatorState,
+) -> Result<(), DynBoxError> {
     match event.r#type {
         MarketEventType::Markets(markets) => {
             info!("Received {} markets", markets.len());
         }
-        MarketEventType::Trades(trades) => {
+        MarketEventType::Trades(market_symbol, trades) => {
             if !trades.is_empty() {
                 let diff = trades[0].received_at.elapsed();
-                info!("core latency = {} us", diff.as_micros());
+                info!("{} core latency = {} us", market_symbol, diff.as_micros());
             }
         }
-        MarketEventType::OrderbookUpdate(orderbooks) => {
-            for orderbook in orderbooks.iter() {
-                info!(
-                    "{}/{}",
-                    orderbook.bids.price_vec.last().unwrap(),
-                    orderbook.asks.price_vec[0]
-                )
-            }
+        MarketEventType::OrderbookUpdate(market_symbol, orderbook) => {
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_micros() as f64
+                / 1_000_000.0;
+            let delay = now - orderbook.time;
+            let bid = orderbook.bids.price_vec.last().unwrap();
+            let ask = orderbook.asks.price_vec[0];
+
+            indicator_state.update_tob(orderbook.time, market_symbol.clone(), *bid, ask);
+
+            info!("{}: {}/{} ({} delay)", market_symbol, bid, ask, delay,)
         }
-        MarketEventType::MidPriceChange(bid, ask) => {
-            info!("Received {}/{} bid/ask", bid, ask);
+        MarketEventType::MidPriceChange(market_symbol, bid, ask) => {
+            info!("{} bid/ask: {}/{}", market_symbol, bid, ask);
         }
     }
     Ok(())

@@ -1,11 +1,13 @@
 //! FTX adapter implementation
 use std::borrow::Borrow;
+use std::collections::HashMap;
 use std::time::Duration;
 
+use async_tungstenite::{async_std::connect_async, tungstenite::Message};
+use serde_json::json;
 use surf::Url;
 
-use crate::market_data::adapter::*;
-use crate::market_data::{error::MarketDataError, Market};
+use crate::market_data::{adapter::*, error::*, Market};
 use crate::prelude::*;
 
 pub struct Ftx;
@@ -46,6 +48,156 @@ impl MarketDataAdapter for Ftx {
             .iter()
             .filter_map(|m| Market::try_from(m.borrow()).ok())
             .collect())
+    }
+
+    /// Runs the websocket loop until Shutdown signal
+    async fn run_exchange_connection_loop(
+        &mut self,
+        data_txs: &crate::market_data::MarketDataProducers,
+        markets: &Box<[Box<str>]>,
+        shutdown: &Shutdown,
+    ) -> Result<Option<MarketEvent>, MarketDataError> {
+        let _token = shutdown
+            .delay_shutdown_token()
+            .map_err(MarketDataError::with_source)?;
+        let url = "wss://ftx.com/ws";
+        info!("connecting to {}", url);
+        let (mut ws_stream, _) = connect_async(url)
+            .await
+            .map_err(MarketDataError::with_source)?;
+
+        for market in markets.iter() {
+            info!("Subscribing for {}", market);
+
+            let subscribe_msg =
+                json!({"op": "subscribe", "channel": "orderbook", "market": market});
+            ws_stream
+                .send(Message::text(subscribe_msg.to_string()))
+                .await
+                .map_err(MarketDataError::with_source)?;
+
+            let subscribe_msg = json!({"op": "subscribe", "channel": "trades", "market": market});
+            ws_stream
+                .send(Message::text(subscribe_msg.to_string()))
+                .await
+                .map_err(MarketDataError::with_source)?;
+        }
+
+        let mut markets: HashMap<Box<str>, PlainOrderbook<_>> = markets
+            .iter()
+            .map(|m| (m.clone(), PlainOrderbook::with_capacity(100)))
+            .collect();
+
+        loop {
+            if shutdown.shutdown_started() {
+                info!("Market data engine shutting down");
+                break Ok(None);
+            }
+
+            let msg = ws_stream.next().await;
+
+            match msg {
+                Some(Ok(Message::Text(msg))) => match process_ws_msg(&msg, &mut markets) {
+                    Ok(event) => data_txs.iter().for_each(|config_tx| {
+                        while config_tx.try_push(event.clone()).is_some() {}
+                    }),
+                    Err(e) => warn!("Failed to process websocket message: {}", e),
+                },
+                Some(Ok(other)) => {
+                    warn!(
+                        reason = "unexpected-websocket-message",
+                        msg = &*other.to_string()
+                    );
+                }
+                None | Some(Err(_)) => {
+                    error!(reason = "disconnected");
+                    break Ok(None);
+                }
+            }
+        }
+    }
+}
+
+/// Processes Websocket text message
+pub fn process_ws_msg(
+    msg: &str,
+    markets: &mut HashMap<Box<str>, PlainOrderbook<f64>>,
+) -> Result<MarketEvent, MarketDataError> {
+    let start = std::time::Instant::now();
+    let ws_msg = serde_json::from_slice::<ws::WsMsg>(msg.as_bytes());
+
+    match ws_msg {
+        Err(e) => {
+            error!("ws_msg {}", msg);
+
+            Err(MarketDataError {
+                source: Box::new(e),
+            })
+        }
+        Ok(mut ws_msg) => {
+            let data = ws_msg.data.to_mut();
+            match data {
+                ws::Data::Trades(trades) => {
+                    info!("got trades = {:?}", trades);
+
+                    let trades: Vec<_> = trades
+                        .iter()
+                        .filter_map(|trade| botvana::market::trade::Trade::try_from(trade).ok())
+                        .collect();
+
+                    info!("parsing took = {:?}", start.elapsed());
+
+                    Ok(MarketEvent {
+                        r#type: MarketEventType::Trades(
+                            Box::from(ws_msg.market.unwrap()),
+                            trades.into_boxed_slice(),
+                        ),
+                        timestamp: Utc::now(),
+                    })
+                }
+                ws::Data::Orderbook(ref mut orderbook_msg) => {
+                    let orderbook = match orderbook_msg.action {
+                        "partial" => {
+                            let orderbook = PlainOrderbook {
+                                bids: PriceLevelsVec::from_tuples_vec_unsorted(
+                                    &mut orderbook_msg.bids,
+                                ),
+                                asks: PriceLevelsVec::from_tuples_vec_unsorted(
+                                    &mut orderbook_msg.asks,
+                                ),
+                                time: orderbook_msg.time,
+                            };
+                            info!("orderbook = {:?}", orderbook);
+                            markets.insert(Box::from(ws_msg.market.unwrap()), orderbook.clone());
+                            orderbook
+                        }
+                        "update" => {
+                            let orderbook = markets.get_mut(ws_msg.market.unwrap()).unwrap();
+                            orderbook.update_with_timestamp(
+                                &PriceLevelsVec::from_tuples_vec(&orderbook_msg.bids),
+                                &PriceLevelsVec::from_tuples_vec(&orderbook_msg.asks),
+                                orderbook_msg.time,
+                            );
+                            orderbook.clone()
+                        }
+                        action => {
+                            return Err(MarketDataError::with_source(UnknownVariantError {
+                                variant: action.to_string(),
+                            }))
+                        }
+                    };
+
+                    Ok(MarketEvent {
+                        r#type: MarketEventType::OrderbookUpdate(
+                            Box::from(ws_msg.market.unwrap()),
+                            Box::new(orderbook),
+                        ),
+                        timestamp: Utc::now(),
+                    })
+                    //info!("got orderbook = {:?}", orderbook);
+                }
+            }
+        }
     }
 }
 

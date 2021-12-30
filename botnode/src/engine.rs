@@ -33,7 +33,7 @@ pub trait Engine {
     fn push_value(&self, val: Self::Data) {
         self.data_txs()
             .iter()
-            .for_each(|config_tx| while let Some(_) = config_tx.try_push(val.clone()) {});
+            .for_each(|config_tx| while config_tx.try_push(val.clone()).is_some() {});
     }
 }
 
