@@ -48,7 +48,7 @@ impl<A: MarketDataAdapter> Engine for MarketDataEngine<A> {
         debug!("Waiting for configuration");
         let config = await_configuration(self.config_rx.clone());
         debug!("Got config = {:?}", config);
-        let markets = config.market_data.into_boxed_slice();
+        let markets = config.markets;
 
         info!("Running loop w/ markets = {:?}", markets);
         if let Err(e) = self

@@ -10,9 +10,9 @@ use crate::net::msg::BotId;
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct BotConfiguration {
     pub bot_id: BotId,
-    pub peer_bots: Vec<PeerBot>,
-    pub market_data: Vec<Box<str>>,
-    pub indicators: Vec<IndicatorConfig>,
+    pub peer_bots: Box<[PeerBot]>,
+    pub markets: Box<[Box<str>]>,
+    pub indicators: Box<[IndicatorConfig]>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]

@@ -3,3 +3,8 @@ listen_address = "0.0.0.0:7978"
 
 [ws_server]
 listen_address = "0.0.0.0:7979"
+
+[[botnode]]
+markets = [
+	"ETH/USD", "BTC/USD", "ETH-PERP", "BTC-PERP"
+]

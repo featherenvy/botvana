@@ -16,6 +16,8 @@ use botvana::{
     state,
 };
 
+use crate::config::BotnodeConfig;
+
 const ACTIVITY_TIMEOUT_SECS: u64 = 15;
 
 #[derive(thiserror::Error, Debug)]
@@ -28,12 +30,57 @@ pub enum BotServerError {
     Timeout,
     #[error("duplicate hello sent by the client")]
     DuplicateHello,
+    #[error("unknown bot id supplied")]
+    UnknownBotID,
+}
+
+/// Bot server loop
+pub async fn serve<A>(
+    addr: A,
+    max_connections: usize,
+    global_state: state::GlobalState,
+    botnode_configs: Box<[BotnodeConfig]>,
+) -> std::io::Result<()>
+where
+    A: ToSocketAddrs + std::net::ToSocketAddrs,
+{
+    let listener = TcpListener::bind(addr)?;
+    let conn_control = Rc::new(Semaphore::new(max_connections as _));
+
+    loop {
+        let stream = match listener.accept().await {
+            Ok(stream) => stream,
+            Err(x) => {
+                error!("Error accepting stream: {:?}", x);
+
+                return Err(x.into());
+            }
+        };
+        let global_state = global_state.clone();
+
+        {
+            let botnode_configs = botnode_configs.clone();
+            Task::local(enclose! { (conn_control) async move {
+                let _permit = conn_control
+                    .acquire_permit(1)
+                    .await
+                    .expect("failed to acquire permit");
+                let mut stream = Framed::new(stream, codec::BotvanaCodec);
+
+                if let Err(e) = handle_connection(&mut stream, global_state, botnode_configs).await {
+                    error!("Error while handling the connection: {}", e);
+                }
+            }})
+            .detach();
+        }
+    }
 }
 
 /// Handle an incoming connection from the bot
 pub async fn handle_connection(
     stream: &mut Framed<TcpStream, codec::BotvanaCodec>,
     global_state: state::GlobalState,
+    botnode_configs: Box<[BotnodeConfig]>,
 ) -> Result<(), BotServerError> {
     let mut conn_bot_id = None;
 
@@ -57,7 +104,7 @@ pub async fn handle_connection(
 
                 debug!("received frame={:?} botid={:?}", frame, conn_bot_id);
 
-                process_bot_message(stream, &mut conn_bot_id, global_state.clone(), frame)
+                process_bot_message(stream, &mut conn_bot_id, global_state.clone(), &botnode_configs, frame)
                     .await
                     .expect("Failed to process");
             }
@@ -75,6 +122,7 @@ pub async fn process_bot_message(
     stream: &mut Framed<TcpStream, codec::BotvanaCodec>,
     conn_bot_id: &mut Option<BotId>,
     global_state: state::GlobalState,
+    botnode_configs: &Box<[BotnodeConfig]>,
     msg: Message,
 ) -> Result<(), BotServerError> {
     match msg {
@@ -87,14 +135,17 @@ pub async fn process_bot_message(
                 return Err(BotServerError::DuplicateHello);
             }
 
+            if bot_id.0 >= botnode_configs.len() as u16 {
+                warn!("Invalid bot id supplied: {:?}", bot_id);
+                return Err(BotServerError::UnknownBotID);
+            }
+
             // Save the bot_id in local variable that's scoped for this
             // connection only
             *conn_bot_id = Some(bot_id.clone());
 
             let bots = global_state.connected_bots().await;
 
-            // In order to asppend the bot_id into global state we first need
-            // to get exclusive write lock
             global_state.add_bot(bot_id.clone()).await;
 
             let peer_bots = bots
@@ -109,11 +160,12 @@ pub async fn process_bot_message(
                 bots.len()
             );
 
+            let market_data = botnode_configs.get(bot_id.0 as usize).unwrap().markets.clone();
             let out_msg = Message::BotConfiguration(BotConfiguration {
                 bot_id: bot_id.clone(),
                 peer_bots,
-                market_data: vec![Box::from("BTC/USD"), Box::from("ETH/USD")],
-                indicators: vec![],
+                market_data,
+                indicators: Box::new([]),
             });
             info!("Sending bot configuration {:?}", out_msg);
 
@@ -138,39 +190,3 @@ pub async fn process_bot_message(
     Ok(())
 }
 
-pub async fn serve<A>(
-    addr: A,
-    max_connections: usize,
-    global_state: state::GlobalState,
-) -> std::io::Result<()>
-where
-    A: ToSocketAddrs + std::net::ToSocketAddrs,
-{
-    let listener = TcpListener::bind(addr)?;
-    let conn_control = Rc::new(Semaphore::new(max_connections as _));
-
-    loop {
-        let stream = match listener.accept().await {
-            Ok(stream) => stream,
-            Err(x) => {
-                error!("Error accepting stream: {:?}", x);
-
-                return Err(x.into());
-            }
-        };
-        let global_state = global_state.clone();
-
-        Task::local(enclose! { (conn_control) async move {
-            let _permit = conn_control
-                .acquire_permit(1)
-                .await
-                .expect("failed to acquire permit");
-            let mut stream = Framed::new(stream, codec::BotvanaCodec);
-
-            if let Err(e) = handle_connection(&mut stream, global_state).await {
-                error!("Error while handling the connection: {}", e);
-            }
-        }})
-        .detach();
-    }
-}
