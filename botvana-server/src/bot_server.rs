@@ -122,7 +122,7 @@ pub async fn process_bot_message(
     stream: &mut Framed<TcpStream, codec::BotvanaCodec>,
     conn_bot_id: &mut Option<BotId>,
     global_state: state::GlobalState,
-    botnode_configs: &Box<[BotnodeConfig]>,
+    botnode_configs: &[BotnodeConfig],
     msg: Message,
 ) -> Result<(), BotServerError> {
     match msg {
@@ -160,11 +160,15 @@ pub async fn process_bot_message(
                 bots.len()
             );
 
-            let market_data = botnode_configs.get(bot_id.0 as usize).unwrap().markets.clone();
+            let markets = botnode_configs
+                .get(bot_id.0 as usize)
+                .unwrap()
+                .markets
+                .clone();
             let out_msg = Message::BotConfiguration(BotConfiguration {
                 bot_id: bot_id.clone(),
                 peer_bots,
-                market_data,
+                markets,
                 indicators: Box::new([]),
             });
             info!("Sending bot configuration {:?}", out_msg);
@@ -189,4 +193,3 @@ pub async fn process_bot_message(
 
     Ok(())
 }
-

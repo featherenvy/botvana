@@ -115,15 +115,12 @@ async fn run_control_loop(
 
                         debug!("received from server = {:?}", msg);
 
-                        match msg {
-                            Message::BotConfiguration(bot_config) => {
-                                debug!("config = {:?}", bot_config);
+                        if let Message::BotConfiguration(bot_config) = msg {
+                            debug!("config = {:?}", bot_config);
 
-                                control.bot_configuration = Some(bot_config.clone());
+                            control.bot_configuration = Some(bot_config.clone());
 
-                                control.push_value(bot_config);
-                            }
-                            _ => {}
+                            control.push_value(bot_config);
                         }
                     }
                     Some(Err(e)) => {

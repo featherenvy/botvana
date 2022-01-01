@@ -6,5 +6,9 @@ listen_address = "0.0.0.0:7979"
 
 [[botnode]]
 markets = [
-	"ETH/USD", "BTC/USD", "ETH-PERP", "BTC-PERP"
+	"ETH/USD", "ETH-PERP",
+	"ETH/EUR",
+	"BTC/USD", "BTC-PERP",
+	"BTC/EUR",
+	"SOL/USD", "SOL-PERP",
 ]

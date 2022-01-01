@@ -115,12 +115,12 @@ fn process_market_event(
 ) -> Result<(), DynBoxError> {
     match event.r#type {
         MarketEventType::Markets(markets) => {
-            info!("Received {} markets", markets.len());
+            trace!("Received {} markets", markets.len());
         }
         MarketEventType::Trades(market_symbol, trades) => {
             if !trades.is_empty() {
                 let diff = trades[0].received_at.elapsed();
-                info!("{} core latency = {} us", market_symbol, diff.as_micros());
+                trace!("{} core latency = {} us", market_symbol, diff.as_micros());
             }
         }
         MarketEventType::OrderbookUpdate(market_symbol, orderbook) => {
@@ -135,10 +135,10 @@ fn process_market_event(
 
             indicator_state.update_tob(orderbook.time, market_symbol.clone(), *bid, ask);
 
-            info!("{}: {}/{} ({} delay)", market_symbol, bid, ask, delay,)
+            trace!("{}: {}/{} ({} delay)", market_symbol, bid, ask, delay,)
         }
         MarketEventType::MidPriceChange(market_symbol, bid, ask) => {
-            info!("{} bid/ask: {}/{}", market_symbol, bid, ask);
+            trace!("{} bid/ask: {}/{}", market_symbol, bid, ask);
         }
     }
     Ok(())

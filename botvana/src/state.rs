@@ -5,7 +5,7 @@ use async_std::sync::RwLock;
 use crate::net::msg::BotId;
 
 // Global state held by botvana-server
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct GlobalState {
     connected_bots: Arc<RwLock<Vec<BotId>>>,
 }

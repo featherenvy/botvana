@@ -40,7 +40,9 @@ fn main() {
 
     let mut control_engine = ControlEngine::new(bot_id, server_addr);
 
-    let ftx_adapter = botnode::market_data::ftx::Ftx {};
+    let ftx_adapter = botnode::market_data::ftx::Ftx {
+        metrics: botnode::market_data::ftx::FtxMetrics::default(),
+    };
     let mut market_data_engine = MarketDataEngine::new(control_engine.data_rx(), ftx_adapter);
 
     let mut indicator_engine =

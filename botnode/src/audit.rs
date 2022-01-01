@@ -2,11 +2,12 @@
 use crate::prelude::*;
 
 /// Auditing engine
+#[derive(Default)]
 pub struct AuditEngine {}
 
 impl AuditEngine {
     pub fn new() -> Self {
-        Self {}
+        Self::default()
     }
 }
 
@@ -35,5 +36,7 @@ impl ToString for AuditEngine {
 
 /// Audit engine loop
 pub async fn run_audit_loop(_shutdown: Shutdown) -> Result<(), EngineError> {
-    loop {}
+    // noop for now
+    // loop {}
+    Ok(())
 }

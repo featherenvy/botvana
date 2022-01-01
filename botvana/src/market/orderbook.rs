@@ -115,7 +115,7 @@ impl<T> PriceLevelsVec<T> {
         let mut price_vec = Vec::with_capacity(data.len());
         let mut size_vec = Vec::with_capacity(data.len());
 
-        data.into_iter().for_each(|(price, size)| {
+        data.iter().for_each(|(price, size)| {
             price_vec.push(*price);
             size_vec.push(*size);
         });
@@ -140,7 +140,7 @@ impl PriceLevelsVec<Decimal> {
             .for_each(|(price, new_size)| {
                 match self
                     .price_vec
-                    .binary_search_by(|v| v.partial_cmp(&price).unwrap())
+                    .binary_search_by(|v| v.partial_cmp(price).unwrap())
                 {
                     Ok(pos) => {
                         if *new_size == Decimal::ZERO {
@@ -169,7 +169,7 @@ impl PriceLevelsVec<f64> {
             .for_each(|(price, new_size)| {
                 match self
                     .price_vec
-                    .binary_search_by(|v| v.partial_cmp(&price).unwrap())
+                    .binary_search_by(|v| v.partial_cmp(price).unwrap())
                 {
                     Ok(pos) => {
                         if *new_size == 0.0 {

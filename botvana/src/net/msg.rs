@@ -115,9 +115,9 @@ mod tests {
     fn ser_deser_configuration() {
         let hello = Message::BotConfiguration(BotConfiguration {
             bot_id: BotId(1),
-            peer_bots: vec![],
-            market_data: vec![Box::from("BTC/USD")],
-            indicators: vec![],
+            peer_bots: Box::new([]),
+            markets: vec![Box::from("BTC/USD")].into_boxed_slice(),
+            indicators: Box::new([]),
         });
         let encoded = bincode::serialize(&hello).unwrap();
         let decoded: Message = bincode::deserialize(&encoded).unwrap();

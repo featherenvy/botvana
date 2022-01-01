@@ -41,7 +41,7 @@ pub trait MarketDataAdapter {
     async fn run_exchange_connection_loop(
         &mut self,
         data_txs: &crate::market_data::MarketDataProducers,
-        markets: &Box<[Box<str>]>,
+        markets: &[Box<str>],
         shutdown: &Shutdown,
     ) -> Result<Option<MarketEvent>, MarketDataError>;
 }

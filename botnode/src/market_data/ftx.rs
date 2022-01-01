@@ -1,16 +1,25 @@
 //! FTX adapter implementation
 use std::borrow::Borrow;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::time::Duration;
 
 use async_tungstenite::{async_std::connect_async, tungstenite::Message};
+use metered::{clear::Clear, time_source::StdInstant, *};
 use serde_json::json;
 use surf::Url;
 
 use crate::market_data::{adapter::*, error::*, Market};
 use crate::prelude::*;
 
-pub struct Ftx;
+pub struct Ftx {
+    pub metrics: FtxMetrics,
+}
+
+#[derive(Default, Debug)]
+pub struct FtxMetrics {
+    throughput: Throughput<StdInstant, RefCell<metered::common::TxPerSec>>,
+}
 
 #[async_trait(?Send)]
 impl MarketDataAdapter for Ftx {
@@ -54,7 +63,7 @@ impl MarketDataAdapter for Ftx {
     async fn run_exchange_connection_loop(
         &mut self,
         data_txs: &crate::market_data::MarketDataProducers,
-        markets: &Box<[Box<str>]>,
+        markets: &[Box<str>],
         shutdown: &Shutdown,
     ) -> Result<Option<MarketEvent>, MarketDataError> {
         let _token = shutdown
@@ -87,6 +96,7 @@ impl MarketDataAdapter for Ftx {
             .iter()
             .map(|m| (m.clone(), PlainOrderbook::with_capacity(100)))
             .collect();
+        let mut start = std::time::Instant::now();
 
         loop {
             if shutdown.shutdown_started() {
@@ -95,24 +105,35 @@ impl MarketDataAdapter for Ftx {
             }
 
             let msg = ws_stream.next().await;
+            let throughput = &self.metrics.throughput;
+            measure!(throughput, {
+                match msg {
+                    Some(Ok(Message::Text(msg))) => match process_ws_msg(&msg, &mut markets) {
+                        Ok(event) => data_txs.iter().for_each(|config_tx| {
+                            while config_tx.try_push(event.clone()).is_some() {}
+                        }),
+                        Err(e) => warn!("Failed to process websocket message: {}", e),
+                    },
+                    Some(Ok(other)) => {
+                        warn!(
+                            reason = "unexpected-websocket-message",
+                            msg = &*other.to_string()
+                        );
+                    }
+                    None | Some(Err(_)) => {
+                        error!(reason = "disconnected");
+                        break Ok(None);
+                    }
+                }
+            });
 
-            match msg {
-                Some(Ok(Message::Text(msg))) => match process_ws_msg(&msg, &mut markets) {
-                    Ok(event) => data_txs.iter().for_each(|config_tx| {
-                        while config_tx.try_push(event.clone()).is_some() {}
-                    }),
-                    Err(e) => warn!("Failed to process websocket message: {}", e),
-                },
-                Some(Ok(other)) => {
-                    warn!(
-                        reason = "unexpected-websocket-message",
-                        msg = &*other.to_string()
-                    );
-                }
-                None | Some(Err(_)) => {
-                    error!(reason = "disconnected");
-                    break Ok(None);
-                }
+            if start.elapsed().as_secs() >= 5 {
+                start = std::time::Instant::now();
+                info!(
+                    "mean throughput over last 5s = {:?}",
+                    throughput.0.borrow().hdr_histogram.mean()
+                );
+                throughput.clear();
             }
         }
     }
@@ -138,14 +159,14 @@ pub fn process_ws_msg(
             let data = ws_msg.data.to_mut();
             match data {
                 ws::Data::Trades(trades) => {
-                    info!("got trades = {:?}", trades);
+                    trace!("got trades = {:?}", trades);
 
                     let trades: Vec<_> = trades
                         .iter()
                         .filter_map(|trade| botvana::market::trade::Trade::try_from(trade).ok())
                         .collect();
 
-                    info!("parsing took = {:?}", start.elapsed());
+                    trace!("parsing took = {:?}", start.elapsed());
 
                     Ok(MarketEvent {
                         r#type: MarketEventType::Trades(

@@ -72,8 +72,13 @@ fn main() {
         .on_all_shards(|| async move {
             debug!("Starting executor");
 
-            if let Err(e) =
-                bot_server::serve::<_>(config.bot_server.listen_address, 4096, state, config.botnode).await
+            if let Err(e) = bot_server::serve::<_>(
+                config.bot_server.listen_address,
+                4096,
+                state,
+                config.botnode,
+            )
+            .await
             {
                 error!("Error while serving: {}", e);
             }
