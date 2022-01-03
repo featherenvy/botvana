@@ -12,25 +12,14 @@ use surf::Url;
 use crate::market_data::{adapter::*, error::*, Market};
 use crate::prelude::*;
 
+#[derive(Default, Debug)]
 pub struct Ftx {
     pub metrics: FtxMetrics,
 }
 
-#[derive(Default, Debug)]
-pub struct FtxMetrics {
-    throughput: Throughput<StdInstant, RefCell<metered::common::TxPerSec>>,
-}
-
 #[async_trait(?Send)]
 impl MarketDataAdapter for Ftx {
-    fn trade_stream(&self) -> TradeStream {
-        TradeStream {}
-    }
-
-    fn orderbook_stream(&self) -> OrderbookStream {
-        OrderbookStream {}
-    }
-
+    /// Fetches available markets on FTX
     async fn fetch_markets(&self) -> Result<Box<[Market]>, MarketDataError> {
         let client: surf::Client = surf::Config::new()
             .set_base_url(Url::parse("https://ftx.com").map_err(MarketDataError::with_source)?)
@@ -63,7 +52,7 @@ impl MarketDataAdapter for Ftx {
     async fn run_exchange_connection_loop(
         &mut self,
         data_txs: &crate::market_data::MarketDataProducers,
-        markets: &[Box<str>],
+        markets: &[&str],
         shutdown: &Shutdown,
     ) -> Result<Option<MarketEvent>, MarketDataError> {
         let _token = shutdown
@@ -94,13 +83,13 @@ impl MarketDataAdapter for Ftx {
 
         let mut markets: HashMap<Box<str>, PlainOrderbook<_>> = markets
             .iter()
-            .map(|m| (m.clone(), PlainOrderbook::with_capacity(100)))
+            .map(|m| (Box::from(*m), PlainOrderbook::with_capacity(100)))
             .collect();
         let mut start = std::time::Instant::now();
 
         loop {
             if shutdown.shutdown_started() {
-                info!("Market data engine shutting down");
+                info!("FTX market data adapter shutting down");
                 break Ok(None);
             }
 
@@ -130,13 +119,18 @@ impl MarketDataAdapter for Ftx {
             if start.elapsed().as_secs() >= 5 {
                 start = std::time::Instant::now();
                 info!(
-                    "mean throughput over last 5s = {:?}",
-                    throughput.0.borrow().hdr_histogram.mean()
+                    "max throughput over last 5s = {:?}",
+                    throughput.0.borrow().hdr_histogram.max()
                 );
                 throughput.clear();
             }
         }
     }
+}
+
+#[derive(Default, Debug)]
+pub struct FtxMetrics {
+    throughput: Throughput<StdInstant, RefCell<metered::common::TxPerSec>>,
 }
 
 /// Processes Websocket text message

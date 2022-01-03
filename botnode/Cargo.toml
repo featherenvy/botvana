@@ -34,9 +34,11 @@ tracing-subscriber = { version = "0.3.3", features = ["env-filter", "parking_lot
 
 botvana = { path = "../botvana" }
 metered = "0.8.0"
+serde-aux = "3.0.1"
 
 [dev-dependencies]
 criterion = "0.3.5"
+smol = "1.2.5"
 
 [[bench]]
 name = "serde_zero_copy_benchmark"

@@ -48,12 +48,16 @@ impl<A: MarketDataAdapter> Engine for MarketDataEngine<A> {
         debug!("Waiting for configuration");
         let config = await_configuration(self.config_rx.clone());
         debug!("Got config = {:?}", config);
-        let markets = config.markets;
+        let markets: Vec<_> = config
+            .markets
+            .iter()
+            .map(|market| market.as_str())
+            .collect();
 
         info!("Running loop w/ markets = {:?}", markets);
         if let Err(e) = self
             .adapter
-            .run_loop(self.data_txs, markets, shutdown)
+            .run_loop(self.data_txs, &markets[..], shutdown)
             .await
         {
             error!("Error running loop: {}", e);
