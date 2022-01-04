@@ -1,22 +1,28 @@
-# Botvana trading engine
+# Botvana trading platform
 
-Botvana is a distributed, event-driven, open-source trading system built using Rust.
-The goal is to build a trading engine that is:
+Botvana is a open-source, event-driven, and distributed trading platform targetting
+crypto markets. It aims to be high-performance, low-latency, reliable, and
+fault-tolerant. Built in Rust, it allows you to build and operate market making
+and arbitrage bots.
 
--   Fast by default: all choices made during design and development favor more
-    performant solution where it's available.
--   Reliable: Botvana is built using Rust and leverages its ownership and type
-    system, and concurency model.
--   Easy to operate: Ease of deployment, updating and operating the platform is
-    a first class concern.
+⚠️ The project is still in very early development ⚠️
 
-Note: The project is still in its infancy.
+## Principles:
+
+-   High-performance: Designed and architected to be high-performance from the
+    groud up.
+-   Low-latency: Currently utilizing `io_uring` for network connectivity, with
+    goals to use `AF_XDP` or kernel by-pass in the future.
+-   Reliable: Being built in Rust provides Botvana with  memory safety guarantees
+    compared to other systems programming languages.
+-   Fault-tolerant: Crypto exchanges are known for unrealiability and so Botvana
+    provides explicit fault-tolerant features.
 
 ## Overview
 
 Botvana is split into these components:
 
--   `botnode`: trading bots
+-   `botnode`: trading bot
 -   `botvana-server`: coordination server
 -   `botvana`: shared platform definitions
 -   `station-egui`: control application
@@ -24,7 +30,7 @@ Botvana is split into these components:
 ### botnode
 
 `botnode` is Botvana's trading bot. Botnode uses thread-per-core architecture where
-each thread is pinned to exactly one unique CPU core. Each CPU core runs different
+each thread is pinned to exactly one logical CPU core. Each CPU core runs different
 engine with custom event loop. Data is sent between engines using ring
 channels and no state is shared between the threads.
 
@@ -43,6 +49,13 @@ Botnode has these engines:
 
 Each `botnode` needs to connect to a central `botvana-server` which provides
 configuration and acts as the central coordinator.
+
+## Roadmap
+
+- [x] Engine & channels implementation
+- [ ] Reporting engine
+- [ ] Infrastructure automation
+
 
 ## Development Prerequisites
 

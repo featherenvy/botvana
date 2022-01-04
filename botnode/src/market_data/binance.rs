@@ -8,6 +8,16 @@ pub struct Binance {
     pub metrics: BinanceMetrics,
     cur_idx: u64,
     api_url: Box<str>,
+    markets: Box<[Box<str>]>,
+}
+
+impl Binance {
+    fn new(markets: &[&str]) -> Self {
+        Self {
+            markets: markets.iter().map(|s| Box::from(s.clone())).collect::<Box<[_]>>(),
+            ..Default::default()
+        }
+    }
 }
 
 impl Default for Binance {
@@ -16,6 +26,7 @@ impl Default for Binance {
             api_url: Box::from("https://api.binance.com"),
             cur_idx: 0,
             metrics: BinanceMetrics::default(),
+            markets: Box::new([]),
         }
     }
 }
@@ -87,40 +98,69 @@ impl WsMarketDataAdapter for Binance {
         markets: &mut HashMap<Box<str>, PlainOrderbook<f64>>,
     ) -> Result<Option<MarketEvent>, MarketDataError> {
         let start = std::time::Instant::now();
-        info!("got ws_msg = {:?}", msg);
 
-        let ws_msg = serde_json::from_slice::<ws::WsMsg>(msg.as_bytes());
+        debug!("got ws_msg = {:?}", msg);
 
-        match ws_msg {
+        let book_ticker = serde_json::from_slice::<ws::WsBookTicker>(msg.as_bytes());
+        match book_ticker {
+            Ok(book_ticker) => Ok(Some(MarketEvent {
+                r#type: MarketEventType::MidPriceChange(
+                    Box::from(book_ticker.symbol),
+                    book_ticker.bid_price,
+                    book_ticker.ask_price,
+                ),
+                timestamp: Utc::now(),
+            })),
             Err(e) => {
-                error!("ws_msg {}", msg);
+                let ws_msg = serde_json::from_slice::<ws::WsMsg>(msg.as_bytes());
 
-                Err(MarketDataError {
-                    source: Box::new(e),
-                })
-            }
-            Ok(ws_msg) => {
-                let data = ws_msg;
-                match data {
-                    ws::WsMsg::Trade(trade) => {
-                        use chrono::TimeZone;
-                        let dt = Utc.timestamp(trade.trade_time as i64, 0);
-                        let symbol = trade.symbol;
-                        let trade = botvana::market::trade::Trade::new(
-                            trade.price.parse().unwrap(),
-                            trade.size.parse().unwrap(),
-                            dt,
-                        );
+                match ws_msg {
+                    Err(e) => {
+                        error!("Error parsing ws_msg: {}", msg);
 
-                        Ok(Some(MarketEvent {
-                            r#type: MarketEventType::Trades(
-                                Box::from(symbol),
-                                Box::new([trade]),
-                            ),
-                            timestamp: Utc::now(),
-                        }))
+                        Err(MarketDataError {
+                            source: Box::new(e),
+                        })
                     }
-                    ws::WsMsg::DepthUpdate(_update) => Ok(None),
+                    Ok(ws_msg) => {
+                        let data = ws_msg;
+                        match data {
+                            ws::WsMsg::Trade(trade) => {
+                                use chrono::TimeZone;
+                                let dt = Utc.timestamp(trade.trade_time as i64, 0);
+                                let symbol = trade.symbol;
+                                let trade =
+                                    botvana::market::trade::Trade::new(trade.price, trade.size, dt);
+
+                                Ok(Some(MarketEvent {
+                                    r#type: MarketEventType::Trades(
+                                        Box::from(symbol),
+                                        Box::new([trade]),
+                                    ),
+                                    timestamp: Utc::now(),
+                                }))
+                            }
+                            ws::WsMsg::DepthUpdate(update) => {
+                                let orderbook = markets.get_mut(update.symbol);
+                                if let Some(orderbook) = orderbook {
+                                    orderbook.update_with_timestamp(
+                                        &update.bids,
+                                        &update.asks,
+                                        update.event_time,
+                                    );
+                                    Ok(Some(MarketEvent {
+                                        r#type: MarketEventType::OrderbookUpdate(
+                                            Box::from(update.symbol),
+                                            Box::new(orderbook.clone()),
+                                        ),
+                                        timestamp: Utc::now(),
+                                    }))
+                                } else {
+                                    Ok(None)
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -134,6 +174,7 @@ pub struct BinanceMetrics {
 
 mod ws {
     use serde::{Deserialize, Deserializer};
+    use serde_aux::prelude::*;
 
     use botvana::market::orderbook::*;
 
@@ -155,37 +196,57 @@ mod ws {
         #[serde(rename = "s")]
         pub symbol: &'a str,
         #[serde(rename = "t")]
-        trade_id: u64,
+        pub trade_id: u64,
         #[serde(rename = "p")]
-        pub price: &'a str,
+        #[serde(deserialize_with = "deserialize_number_from_string")]
+        pub price: f64,
         #[serde(rename = "q")]
-        pub size: &'a str,
+        #[serde(deserialize_with = "deserialize_number_from_string")]
+        pub size: f64,
         #[serde(rename = "b")]
-        buyer_order_id: u32,
+        pub buyer_order_id: u32,
         #[serde(rename = "a")]
-        seller_order_id: u32,
+        pub seller_order_id: u32,
         #[serde(rename = "T")]
         pub trade_time: f64,
         #[serde(rename = "m")]
-        maket_maker_buyer: bool,
+        pub maket_maker_buyer: bool,
     }
 
     #[derive(Debug, Deserialize)]
     pub struct WsDepthUpdate<'a> {
         #[serde(rename = "E")]
-        event_time: f64,
+        pub event_time: f64,
         #[serde(rename = "s")]
-        symbol: &'a str,
+        pub symbol: &'a str,
         #[serde(rename = "U")]
-        first_update_id: i64,
+        pub first_update_id: u64,
         #[serde(rename = "u")]
-        final_update_id: i64,
+        pub final_update_id: u64,
         #[serde(rename = "b")]
         #[serde(deserialize_with = "deserialize_into_price_levels_vec")]
-        bids: PriceLevelsVec<f64>,
+        pub bids: PriceLevelsVec<f64>,
         #[serde(rename = "a")]
         #[serde(deserialize_with = "deserialize_into_price_levels_vec")]
-        asks: PriceLevelsVec<f64>,
+        pub asks: PriceLevelsVec<f64>,
+    }
+
+    #[derive(Debug, Deserialize)]
+    pub struct WsBookTicker<'a> {
+        #[serde(rename = "u")]
+        pub update_id: u64,
+        #[serde(rename = "s")]
+        pub symbol: &'a str,
+        #[serde(rename = "b")]
+        #[serde(deserialize_with = "deserialize_number_from_string")]
+        pub bid_price: f64,
+        #[serde(rename = "B")]
+        pub bid_size: &'a str,
+        #[serde(rename = "a")]
+        #[serde(deserialize_with = "deserialize_number_from_string")]
+        pub ask_price: f64,
+        #[serde(rename = "A")]
+        pub ask_size: &'a str,
     }
 
     fn deserialize_into_price_levels_vec<'de, D>(
@@ -242,12 +303,7 @@ mod tests {
 
     #[test]
     fn test_orderbook_snapshot_parse() {
-        use std::path::PathBuf;
-
-        let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        d.push("tests/binance_api_v3_depth.json");
-        let json =
-            std::fs::read_to_string(d).expect("Failed to read JSON response fixture from file");
+        let json: &str = include_str!("../../tests/binance_api_v3_depth.json");
 
         let _: rest::OrderbookSnapshot = serde_json::from_str(&json).unwrap();
     }
@@ -284,6 +340,26 @@ mod tests {
         let b = Binance::default();
 
         let event = b.process_ws_msg(trade_msg, &mut HashMap::new()).unwrap();
+
+        assert!(event.is_some());
+    }
+
+    #[test]
+    fn test_process_ws_msg_book_ticker() {
+        let book_ticker_msg = r#"{
+            "u":13639707622,
+            "s":"ETHUSDT",
+            "b":"3826.81000000",
+            "B":"0.07210000",
+            "a":"3826.82000000",
+            "A":"0.88940000"
+        }"#;
+        let b = Binance::default();
+
+        let event = b
+            .process_ws_msg(book_ticker_msg, &mut HashMap::new())
+            .unwrap();
+
         assert!(event.is_some());
     }
 
@@ -311,6 +387,7 @@ mod tests {
         let b = Binance::default();
 
         let event = b.process_ws_msg(depth_msg, &mut HashMap::new()).unwrap();
+
         assert!(event.is_some());
     }
 }

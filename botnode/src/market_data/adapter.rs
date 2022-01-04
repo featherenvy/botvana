@@ -46,11 +46,14 @@ pub enum FeedType {
     TopOfBook,
 }
 
+/// Websocket adapter for market data
 pub trait WsMarketDataAdapter {
     fn ws_url(&self) -> Box<str>;
 
+    /// Returns set of subscribe messages to send to subscribe to given markets
     fn subscribe_msgs(&mut self, markets: &[&str]) -> Box<[String]>;
 
+    /// Returns throughput metrics
     fn throughput_metrics(&self) -> &Throughput<StdInstant, RefCell<metered::common::TxPerSec>>;
 
     /// Processes Websocket text message
@@ -63,6 +66,7 @@ pub trait WsMarketDataAdapter {
 
 #[async_trait(?Send)]
 pub trait RestMarketDataAdapter {
+    /// Fetch orderbook snapshot
     async fn fetch_orderbook_snapshot(
         &self,
         symbol: &str,

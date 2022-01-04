@@ -12,6 +12,7 @@ pub struct Trade {
 }
 
 impl Trade {
+    /// Creates new trade
     pub fn new(price: f64, size: f64, time: DateTime<Utc>) -> Self {
         Self {
             price,
