@@ -53,6 +53,8 @@ Botnode has these engines:
 Each `botnode` needs to connect to a central `botvana-server` which provides
 configuration and acts as the central coordinator.
 
+Botvana server expects configuration in `cfg/default.toml`.
+
 ### station-egui
 
 Control station application written using egui framework.
@@ -78,4 +80,12 @@ In order to work with Botvana you need to have:
 3.  Build all components
     ```sh
     cargo build
+    ```
+4.  Run `botvana-server`
+    ```sh
+    cargo r --bin botvana-server
+    ```
+5.  Run `botnode`
+    ```sh
+    SERVER_ADDR=127.0.0.1:7978 BOT_ID=0 cargo r --bin botnode
     ```
