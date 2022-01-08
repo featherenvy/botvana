@@ -10,3 +10,4 @@ markets = [
 	"BTC-USDT",
 	"SOL-USDT",
 ]
+exchanges = ["ftx", "binance"]

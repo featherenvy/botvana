@@ -34,6 +34,7 @@ impl<A: MarketDataAdapter> Engine for MarketDataEngine<A> {
     async fn start(mut self, shutdown: Shutdown) -> Result<(), EngineError> {
         info!("Starting market data engine");
 
+        // First, fetch available markets using the adapter
         match self.adapter.fetch_markets().await {
             Ok(markets) => {
                 let event = MarketEvent {
@@ -47,6 +48,7 @@ impl<A: MarketDataAdapter> Engine for MarketDataEngine<A> {
             }
         };
 
+        // Await configuration from botvana-server
         debug!("Waiting for configuration");
         let config = await_value(self.config_rx);
         debug!("Got config = {:?}", config);

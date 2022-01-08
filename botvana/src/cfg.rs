@@ -11,7 +11,8 @@ use crate::net::msg::BotId;
 pub struct BotConfiguration {
     pub bot_id: BotId,
     pub peer_bots: Box<[PeerBot]>,
-    pub markets: Box<[String]>,
+    pub exchanges: Box<[Box<str>]>,
+    pub markets: Box<[Box<str>]>,
     pub indicators: Box<[IndicatorConfig]>,
 }
 

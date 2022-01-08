@@ -13,6 +13,7 @@ pub struct WebsocketServerConfig {
 #[derive(Clone, Deserialize)]
 pub struct BotnodeConfig {
     pub markets: Box<[String]>,
+    pub exchanges: Box<[Box<str>]>,
 }
 
 #[derive(Deserialize)]

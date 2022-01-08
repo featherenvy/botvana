@@ -23,6 +23,7 @@ pub mod prelude {
         prelude::*,
         LocalExecutor, LocalExecutorBuilder,
     };
+    pub use std::collections::HashMap;
     pub use std::num::NonZeroUsize;
     pub use tracing::{debug, error, info, trace, warn};
 
