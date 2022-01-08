@@ -14,7 +14,10 @@ pub struct Binance {
 impl Binance {
     fn new(markets: &[&str]) -> Self {
         Self {
-            markets: markets.iter().map(|s| Box::from(s.clone())).collect::<Box<[_]>>(),
+            markets: markets
+                .iter()
+                .map(|s| Box::from(s.clone()))
+                .collect::<Box<[_]>>(),
             ..Default::default()
         }
     }

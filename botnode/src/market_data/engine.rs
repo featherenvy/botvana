@@ -55,7 +55,7 @@ impl<A: MarketDataAdapter> Engine for MarketDataEngine<A> {
         let markets: Vec<_> = config
             .markets
             .iter()
-            .map(|market| market.as_str())
+            .map(|market| market.as_ref())
             .collect();
 
         info!("Running loop w/ markets = {:?}", config.markets);

@@ -113,7 +113,7 @@ mod tests {
         async fn start(self, shutdown: Shutdown) -> Result<(), EngineError> {
             loop {
                 if shutdown.shutdown_started() {
-                    return Ok(())
+                    return Ok(());
                 }
             }
         }
