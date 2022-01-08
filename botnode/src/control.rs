@@ -15,6 +15,7 @@ pub struct ControlEngine {
 }
 
 impl ControlEngine {
+    /// Create new control engine
     pub fn new<T: ToString>(bot_id: BotId, server_addr: T) -> Self {
         Self {
             bot_id,
@@ -31,6 +32,7 @@ impl ControlEngine {
 impl Engine for ControlEngine {
     type Data = BotConfiguration;
 
+    /// Start the control engine
     async fn start(mut self, shutdown: Shutdown) -> Result<(), EngineError> {
         info!("Starting control engine");
 
@@ -51,6 +53,7 @@ impl Engine for ControlEngine {
         config_rx
     }
 
+    /// Returns config transmitters used to notify other engines
     fn data_txs(&self) -> &[spsc_queue::Producer<Self::Data>] {
         self.config_txs.as_slice()
     }
@@ -62,16 +65,21 @@ impl ToString for ControlEngine {
     }
 }
 
+/// Error encountered by the control engine
 #[derive(Debug, thiserror::Error)]
-#[error("{msg}")]
+#[error("Control engine error: {msg}")]
 pub struct ControlEngineError {
     msg: &'static str,
 }
 
+/// Botnode status
 #[derive(Clone, PartialEq)]
 enum BotnodeStatus {
+    /// Connecting to botvana-server
     Connecting,
+    /// Connected to botvana-server
     Online,
+    /// Not connected to botvana-server
     Offline,
 }
 
@@ -83,6 +91,7 @@ async fn run_control_loop(
     control: &mut ControlEngine,
     shutdown: Shutdown,
 ) -> Result<(), EngineError> {
+    // Get a token to delay shutdown until the token is dropped
     let _token = shutdown
         .delay_shutdown_token()
         .map_err(EngineError::with_source)?;
@@ -104,6 +113,7 @@ async fn run_control_loop(
         futures::select! {
             msg = framed.next().fuse() => {
                 debug!("msg = {:?}", msg);
+
                 match msg {
                     Some(Ok(msg)) => {
                         if matches!(
@@ -124,11 +134,9 @@ async fn run_control_loop(
                         }
                     }
                     Some(Err(e)) => {
-                        error!("Botvana connection error: {:?}", e);
                         return Err(EngineError::with_source(e));
                     }
                     None => {
-                        error!("disconnected from botvana-server");
                         return Err(EngineError::with_source(ControlEngineError {
                             msg: "Disconnected from botvana-server"
                         }));
@@ -136,7 +144,9 @@ async fn run_control_loop(
                 }
             }
             _ = async_std::task::sleep(control.ping_interval).fuse() => {
-                framed.send(Message::ping()).await.unwrap();
+                if let Err(e) = framed.send(Message::ping()).await {
+                    error!("Failed to send ping message: {:?}", e);
+                }
             }
             _ = shutdown.wait_shutdown_triggered().fuse() => {
                 break Ok(());

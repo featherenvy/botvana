@@ -12,6 +12,7 @@ use surf::Url;
 use crate::market_data::{adapter::*, error::*, Market};
 use crate::prelude::*;
 
+#[derive(Default, Debug)]
 pub struct Ftx {
     pub metrics: FtxMetrics,
 }

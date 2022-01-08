@@ -8,7 +8,7 @@ pub struct IndicatorEngine {
     config_rx: spsc_queue::Consumer<BotConfiguration>,
     data_txs: ArrayVec<spsc_queue::Producer<IndicatorEvent>, CONSUMER_LIMIT>,
     indicators_config: Box<[IndicatorConfig]>,
-    market_data_rx: spsc_queue::Consumer<MarketEvent>,
+    market_data_rxs: HashMap<Box<str>, Vec<spsc_queue::Consumer<MarketEvent>>>,
 }
 
 #[derive(Clone, Debug)]
@@ -17,13 +17,13 @@ pub enum IndicatorEvent {}
 impl IndicatorEngine {
     pub fn new(
         config_rx: spsc_queue::Consumer<BotConfiguration>,
-        market_data_rx: spsc_queue::Consumer<MarketEvent>,
+        market_data_rxs: HashMap<Box<str>, Vec<spsc_queue::Consumer<MarketEvent>>>,
     ) -> Self {
         Self {
             config_rx,
             data_txs: ArrayVec::<_, CONSUMER_LIMIT>::new(),
             indicators_config: Box::new([]),
-            market_data_rx,
+            market_data_rxs,
         }
     }
 }
@@ -39,7 +39,7 @@ impl Engine for IndicatorEngine {
         debug!("config = {:?}", config);
         self.indicators_config = config.indicators;
 
-        run_indicator_loop(self.market_data_rx, shutdown).await
+        run_indicator_loop(self.market_data_rxs, shutdown).await
     }
 
     fn data_txs(&self) -> &[spsc_queue::Producer<Self::Data>] {
@@ -84,7 +84,7 @@ impl IndicatorState {
 
 /// Indicator engine loop
 pub async fn run_indicator_loop(
-    market_data_rx: spsc_queue::Consumer<MarketEvent>,
+    market_data_rxs: HashMap<Box<str>, Vec<spsc_queue::Consumer<MarketEvent>>>,
     shutdown: Shutdown,
 ) -> Result<(), EngineError> {
     let _token = shutdown
@@ -100,10 +100,14 @@ pub async fn run_indicator_loop(
             break Ok(());
         }
 
-        if let Some(event) = market_data_rx.try_pop() {
-            //info!("market_event = {:?}", event);
-            if let Err(e) = process_market_event(event, &mut indicator_state) {
-                error!("Failed to process market event: {}", e);
+        for (_, rxs) in market_data_rxs.iter() {
+            for market_data_rx in rxs {
+                if let Some(event) = market_data_rx.try_pop() {
+                    //info!("market_event = {:?}", event);
+                    if let Err(e) = process_market_event(event, &mut indicator_state) {
+                        error!("Failed to process market event: {}", e);
+                    }
+                }
             }
         }
     }

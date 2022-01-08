@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::env::var;
 use std::panic;
 
@@ -36,33 +37,89 @@ fn main() {
         }));
     }
 
-    // Stage 1: create the engines & wire them up
+    // Stage 1: Start the control engine that will connect to botvana-server and
+    // receive the configuration.
 
     let mut control_engine = ControlEngine::new(bot_id, server_addr);
-
-    let ftx_adapter = botnode::market_data::ftx::Ftx {
-        metrics: botnode::market_data::ftx::FtxMetrics::default(),
-    };
-    let mut market_data_engine = MarketDataEngine::new(control_engine.data_rx(), ftx_adapter);
-
-    let mut indicator_engine =
-        IndicatorEngine::new(control_engine.data_rx(), market_data_engine.data_rx());
-
-    let trading_engine =
-        TradingEngine::new(market_data_engine.data_rx(), indicator_engine.data_rx());
-
-    // Stage 2: start the engines
-
-    start_engine(4, AuditEngine::new(), shutdown.clone()).expect("failed to start audit engine");
-
-    start_engine(3, trading_engine, shutdown.clone()).expect("failed to start trading engine");
-
-    start_engine(2, indicator_engine, shutdown.clone()).expect("failed to start indicator engine");
-
-    start_engine(1, market_data_engine, shutdown.clone())
-        .expect("failed to start market data engine");
+    let mut config_rxs: Vec<_> = (1..5)
+        .into_iter()
+        .map(|_| control_engine.data_rx())
+        .collect();
 
     start_engine(0, control_engine, shutdown.clone()).expect("failed to start control engine");
+
+    debug!("Waiting for configuration");
+    let config = await_configuration(config_rxs.pop().unwrap());
+    let mut market_data_rxs = vec![HashMap::new(), HashMap::new()];
+
+    for (i, exchange) in config.exchanges.iter().enumerate() {
+        debug!("starting exchange {:?}", exchange);
+
+        match exchange.as_ref() {
+            "ftx" => {
+                let ftx_adapter = botnode::market_data::ftx::Ftx {
+                    metrics: botnode::market_data::ftx::FtxMetrics::default(),
+                };
+                let mut market_data_engine =
+                    MarketDataEngine::new(config_rxs.pop().unwrap(), ftx_adapter);
+                market_data_rxs[0].insert(
+                    exchange.clone(),
+                    vec![market_data_engine.data_rx(), market_data_engine.data_rx()],
+                );
+                market_data_rxs[1].insert(
+                    exchange.clone(),
+                    vec![market_data_engine.data_rx(), market_data_engine.data_rx()],
+                );
+
+                start_engine(i + 1, market_data_engine, shutdown.clone())
+                    .expect("failed to start market data engine");
+            }
+            "binance" => {
+                let binance_adapter = botnode::market_data::ftx::Ftx {
+                    metrics: botnode::market_data::ftx::FtxMetrics::default(),
+                };
+                let mut market_data_engine =
+                    MarketDataEngine::new(config_rxs.pop().unwrap(), binance_adapter);
+                market_data_rxs[0].insert(
+                    exchange.clone(),
+                    vec![market_data_engine.data_rx(), market_data_engine.data_rx()],
+                );
+                market_data_rxs[1].insert(
+                    exchange.clone(),
+                    vec![market_data_engine.data_rx(), market_data_engine.data_rx()],
+                );
+
+                start_engine(i + 1, market_data_engine, shutdown.clone())
+                    .expect("failed to start market data engine");
+            }
+            _ => {
+                error!("Unknown exchange {}", exchange);
+            }
+        }
+    }
+
+    let mut indicator_engine =
+        IndicatorEngine::new(config_rxs.pop().unwrap(), market_data_rxs.pop().unwrap());
+
+    let trading_engine =
+        TradingEngine::new(market_data_rxs.pop().unwrap(), indicator_engine.data_rx());
+
+    start_engine(
+        config.exchanges.len() + 2,
+        AuditEngine::new(),
+        shutdown.clone(),
+    )
+    .expect("failed to start audit engine");
+
+    start_engine(config.exchanges.len() + 3, trading_engine, shutdown.clone())
+        .expect("failed to start trading engine");
+
+    start_engine(
+        config.exchanges.len() + 4,
+        indicator_engine,
+        shutdown.clone(),
+    )
+    .expect("failed to start indicator engine");
 
     // Setup signal handlers for shutdown
     let signals = Signals::new(&[SIGINT, SIGTERM, SIGQUIT]).expect("Failed to register signals");
