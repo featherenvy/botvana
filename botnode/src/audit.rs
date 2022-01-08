@@ -13,6 +13,8 @@ impl AuditEngine {
 
 #[async_trait(?Send)]
 impl Engine for AuditEngine {
+    const NAME: &'static str = "audit-engine";
+
     type Data = ();
 
     async fn start(self, shutdown: Shutdown) -> Result<(), EngineError> {
@@ -25,12 +27,6 @@ impl Engine for AuditEngine {
     fn data_rx(&mut self) -> spsc_queue::Consumer<Self::Data> {
         let (_data_tx, data_rx) = spsc_queue::make::<()>(1024);
         data_rx
-    }
-}
-
-impl ToString for AuditEngine {
-    fn to_string(&self) -> String {
-        "audit-engine".to_string()
     }
 }
 

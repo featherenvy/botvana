@@ -9,6 +9,8 @@ impl OrderEngine {}
 
 #[async_trait(?Send)]
 impl Engine for OrderEngine {
+    const NAME: &'static str = "order-engine";
+
     type Data = ();
 
     async fn start(self, _shutdown: Shutdown) -> Result<(), EngineError> {

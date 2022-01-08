@@ -26,6 +26,8 @@ impl<A: MarketDataAdapter> MarketDataEngine<A> {
 
 #[async_trait(?Send)]
 impl<A: MarketDataAdapter> Engine for MarketDataEngine<A> {
+    const NAME: &'static str = "market-data-engine";
+
     type Data = MarketEvent;
 
     /// Start the market data engine
@@ -46,7 +48,7 @@ impl<A: MarketDataAdapter> Engine for MarketDataEngine<A> {
         };
 
         debug!("Waiting for configuration");
-        let config = await_configuration(self.config_rx.clone());
+        let config = await_value(self.config_rx);
         debug!("Got config = {:?}", config);
         let markets: Vec<_> = config
             .markets
@@ -54,7 +56,7 @@ impl<A: MarketDataAdapter> Engine for MarketDataEngine<A> {
             .map(|market| market.as_str())
             .collect();
 
-        info!("Running loop w/ markets = {:?}", markets);
+        info!("Running loop w/ markets = {:?}", config.markets);
         if let Err(e) = self
             .adapter
             .run_loop(self.data_txs, &markets[..], shutdown)
@@ -75,11 +77,5 @@ impl<A: MarketDataAdapter> Engine for MarketDataEngine<A> {
         let (data_tx, data_rx) = spsc_queue::make(1);
         self.data_txs.push(data_tx);
         data_rx
-    }
-}
-
-impl<A: MarketDataAdapter> ToString for MarketDataEngine<A> {
-    fn to_string(&self) -> String {
-        "market-data-engine".to_string()
     }
 }
