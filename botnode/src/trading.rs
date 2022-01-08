@@ -22,6 +22,8 @@ impl TradingEngine {
 
 #[async_trait(?Send)]
 impl Engine for TradingEngine {
+    const NAME: &'static str = "trading-engine";
+
     type Data = ();
 
     async fn start(mut self, shutdown: Shutdown) -> Result<(), EngineError> {
@@ -34,12 +36,6 @@ impl Engine for TradingEngine {
     fn data_rx(&mut self) -> spsc_queue::Consumer<Self::Data> {
         let (_data_tx, data_rx) = spsc_queue::make::<()>(1024);
         data_rx
-    }
-}
-
-impl ToString for TradingEngine {
-    fn to_string(&self) -> String {
-        "trading-engine".to_string()
     }
 }
 

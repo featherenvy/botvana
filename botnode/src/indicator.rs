@@ -30,12 +30,14 @@ impl IndicatorEngine {
 
 #[async_trait(?Send)]
 impl Engine for IndicatorEngine {
+    const NAME: &'static str = "indicator-engine";
+
     type Data = IndicatorEvent;
 
     async fn start(mut self, shutdown: Shutdown) -> Result<(), EngineError> {
         info!("Starting indicator engine");
 
-        let config = await_configuration(self.config_rx);
+        let config = await_value(self.config_rx);
         debug!("config = {:?}", config);
         self.indicators_config = config.indicators;
 
@@ -50,12 +52,6 @@ impl Engine for IndicatorEngine {
         let (data_tx, data_rx) = spsc_queue::make(1);
         self.data_txs.push(data_tx);
         data_rx
-    }
-}
-
-impl ToString for IndicatorEngine {
-    fn to_string(&self) -> String {
-        "indicator-engine".to_string()
     }
 }
 

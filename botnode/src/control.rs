@@ -30,6 +30,8 @@ impl ControlEngine {
 
 #[async_trait(?Send)]
 impl Engine for ControlEngine {
+    const NAME: &'static str = "control-engine";
+
     type Data = BotConfiguration;
 
     /// Start the control engine
@@ -59,13 +61,6 @@ impl Engine for ControlEngine {
     }
 }
 
-impl ToString for ControlEngine {
-    fn to_string(&self) -> String {
-        "control-engine".to_string()
-    }
-}
-
-/// Error encountered by the control engine
 #[derive(Debug, thiserror::Error)]
 #[error("Control engine error: {msg}")]
 pub struct ControlEngineError {
