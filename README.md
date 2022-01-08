@@ -10,7 +10,8 @@ and arbitrage strategies.
 ## Principles:
 
 -   High-performance: Designed and architected to be high-performance from the
-    groud up.
+    ground up. It utilizes thread-per-core architecture to take advantage of
+    modern multicore CPUs.
 -   Low-latency: Currently utilizing `io_uring` for network connectivity, with
     goals to use `AF_XDP` or kernel by-pass in the future.
 -   Reliable: Being built in Rust provides Botvana with  memory safety guarantees
@@ -34,8 +35,8 @@ Binance.
 
 `botnode` is Botvana's trading bot. Botnode uses thread-per-core architecture where
 each thread is pinned to exactly one logical CPU core. Each CPU core runs different
-engine with custom event loop. Data is sent between engines using ring
-channels and no state is shared between the threads.
+engine with custom event loop. Data is sent between engines using spsc channels and
+no global state is shared between the threads.
 
 Botnode has these engines:
 
