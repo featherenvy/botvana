@@ -29,6 +29,8 @@ impl ControlEngine {
 
 #[async_trait(?Send)]
 impl Engine for ControlEngine {
+    const NAME: &'static str = "control-engine";
+
     type Data = BotConfiguration;
 
     async fn start(mut self, shutdown: Shutdown) -> Result<(), EngineError> {
@@ -53,12 +55,6 @@ impl Engine for ControlEngine {
 
     fn data_txs(&self) -> &[spsc_queue::Producer<Self::Data>] {
         self.config_txs.as_slice()
-    }
-}
-
-impl ToString for ControlEngine {
-    fn to_string(&self) -> String {
-        "control-engine".to_string()
     }
 }
 
