@@ -109,6 +109,7 @@ pub async fn run_indicator_loop(
     }
 }
 
+/// Handles incoming [`MarketEvent`]
 fn process_market_event(
     event: MarketEvent,
     indicator_state: &mut IndicatorState,

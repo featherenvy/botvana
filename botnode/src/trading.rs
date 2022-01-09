@@ -49,13 +49,13 @@ pub async fn run_trading_loop(
         for (exchange, rxs) in market_data_rxs.iter() {
             for market_data_rx in rxs {
                 if let Some(event) = market_data_rx.try_pop() {
-                    info!("market_event = {} {:?}", exchange, event);
+                    trace!("market_event = {} {:?}", exchange, event);
                 }
             }
         }
 
         if let Some(event) = indicator_rx.try_pop() {
-            info!("indicator = {:?}", event);
+            trace!("indicator = {:?}", event);
         }
     }
 }

@@ -1,3 +1,5 @@
+mod controller;
+
 use crate::prelude::*;
 
 /// Botnode engines type

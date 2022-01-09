@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use crate::{audit::*, engine::*, indicator::*, market_data::*, trading::*};
 
 const CONSUMER_LIMIT: usize = 16;
 
@@ -25,6 +26,74 @@ impl ControlEngine {
             config_txs: ArrayVec::<_, CONSUMER_LIMIT>::new(),
             bot_configuration: None,
         }
+    }
+
+    fn start_engines(&mut self, config: BotConfiguration, shutdown: Shutdown) -> Result<(), ()> {
+        let mut market_data_rxs = vec![HashMap::new(), HashMap::new()];
+
+        for (i, exchange) in config.exchanges.iter().enumerate() {
+            debug!("starting exchange {:?}", exchange);
+
+            match exchange.as_ref() {
+                "ftx" => {
+                    let ftx_adapter = crate::market_data::ftx::Ftx::default();
+                    let mut market_data_engine = MarketDataEngine::new(self.data_rx(), ftx_adapter);
+
+                    market_data_rxs.iter_mut().for_each(|rx| {
+                        rx.insert(
+                            exchange.clone(),
+                            vec![market_data_engine.data_rx(), market_data_engine.data_rx()],
+                        );
+                    });
+
+                    start_engine(i + 1, market_data_engine, shutdown.clone())
+                        .expect("failed to start market data engine");
+                }
+                "binance" => {
+                    let binance_adapter = crate::market_data::binance::Binance::default();
+                    let mut market_data_engine =
+                        MarketDataEngine::new(self.data_rx(), binance_adapter);
+
+                    market_data_rxs.iter_mut().for_each(|rx| {
+                        rx.insert(
+                            exchange.clone(),
+                            vec![market_data_engine.data_rx(), market_data_engine.data_rx()],
+                        );
+                    });
+
+                    start_engine(i + 1, market_data_engine, shutdown.clone())
+                        .expect("failed to start market data engine");
+                }
+                _ => {
+                    error!("Unknown exchange {}", exchange);
+                }
+            }
+        }
+
+        let mut indicator_engine =
+            IndicatorEngine::new(self.data_rx(), market_data_rxs.pop().unwrap());
+
+        let trading_engine =
+            TradingEngine::new(market_data_rxs.pop().unwrap(), indicator_engine.data_rx());
+
+        start_engine(
+            config.exchanges.len() + 2,
+            AuditEngine::new(),
+            shutdown.clone(),
+        )
+        .expect("failed to start audit engine");
+
+        start_engine(config.exchanges.len() + 3, trading_engine, shutdown.clone())
+            .expect("failed to start trading engine");
+
+        start_engine(
+            config.exchanges.len() + 4,
+            indicator_engine,
+            shutdown.clone(),
+        )
+        .expect("failed to start indicator engine");
+
+        Ok(())
     }
 }
 
@@ -124,6 +193,8 @@ async fn run_control_loop(
                             debug!("config = {:?}", bot_config);
 
                             control.bot_configuration = Some(bot_config.clone());
+
+                            control.start_engines(bot_config.clone(), shutdown.clone()).unwrap();
 
                             control.push_value(bot_config);
                         }
