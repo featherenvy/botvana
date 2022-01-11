@@ -7,7 +7,9 @@ pub const CONSUMER_LIMIT: usize = 16;
 
 pub type MarketDataProducers = ArrayVec<spsc_queue::Producer<MarketEvent>, CONSUMER_LIMIT>;
 
-/// Engine that maintains connections to exchanges and produces raw market data
+/// Market Data Engine
+///
+/// It maintains connection to the exchange and produces raw market data.
 pub struct MarketDataEngine<A: MarketDataAdapter> {
     adapter: A,
     config_rx: spsc_queue::Consumer<BotConfiguration>,
@@ -26,13 +28,15 @@ impl<A: MarketDataAdapter> MarketDataEngine<A> {
 
 #[async_trait(?Send)]
 impl<A: MarketDataAdapter> Engine for MarketDataEngine<A> {
-    const NAME: &'static str = "market-data-engine";
-
     type Data = MarketEvent;
+
+    fn name(&self) -> String {
+        format!("market-data-{}", A::NAME)
+    }
 
     /// Start the market data engine
     async fn start(mut self, shutdown: Shutdown) -> Result<(), EngineError> {
-        info!("Starting market data engine");
+        info!("Starting market data engine for {}", A::NAME);
 
         // First, fetch available markets using the adapter
         match self.adapter.fetch_markets().await {

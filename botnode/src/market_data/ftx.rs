@@ -19,6 +19,8 @@ pub struct Ftx {
 
 #[async_trait(?Send)]
 impl MarketDataAdapter for Ftx {
+    const NAME: &'static str = "ftx";
+
     /// Fetches available markets on FTX
     async fn fetch_markets(&self) -> Result<Box<[Market]>, MarketDataError> {
         let client: surf::Client = surf::Config::new()
@@ -44,7 +46,7 @@ impl MarketDataAdapter for Ftx {
 
         Ok(markets
             .iter()
-            .filter_map(|m| Market::try_from(m.borrow()).ok())
+            .filter_map(|m| <Market as TryFrom<&'_ rest::MarketInfo<'_>>>::try_from(m.borrow()).ok())
             .collect())
     }
 

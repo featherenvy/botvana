@@ -13,9 +13,11 @@ impl AuditEngine {
 
 #[async_trait(?Send)]
 impl Engine for AuditEngine {
-    const NAME: &'static str = "audit-engine";
-
     type Data = ();
+
+    fn name(&self) -> String {
+        "audit-engine".to_string()
+    }
 
     async fn start(self, shutdown: Shutdown) -> Result<(), EngineError> {
         info!("Starting audit engine");

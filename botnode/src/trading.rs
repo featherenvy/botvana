@@ -22,9 +22,11 @@ impl TradingEngine {
 
 #[async_trait(?Send)]
 impl Engine for TradingEngine {
-    const NAME: &'static str = "trading-engine";
-
     type Data = ();
+
+    fn name(&self) -> String {
+        "trading-engine".to_string()
+    }
 
     async fn start(mut self, shutdown: Shutdown) -> Result<(), EngineError> {
         info!("Starting trading engine");

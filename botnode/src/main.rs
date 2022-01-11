@@ -48,9 +48,6 @@ fn main() {
 
     start_engine(0, control_engine, shutdown.clone()).expect("failed to start control engine");
 
-    debug!("Waiting for configuration");
-    let config = await_value(config_rxs.pop().unwrap());
-
     // Setup signal handlers for shutdown
     let signals = Signals::new(&[SIGINT, SIGTERM, SIGQUIT]).expect("Failed to register signals");
     let local_ex = LocalExecutor::default();

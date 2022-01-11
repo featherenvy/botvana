@@ -13,10 +13,11 @@ pub enum EngineType {
 /// Engine trait
 #[async_trait(?Send)]
 pub trait Engine {
-    const NAME: &'static str;
-
     /// Data that the engine produces
     type Data: Clone;
+
+    /// Returns engine name
+    fn name(&self) -> String;
 
     /// Start the engine loop
     async fn start(self, shutdown: Shutdown) -> Result<(), EngineError>;
@@ -51,9 +52,11 @@ pub trait Engine {
 ///
 /// #[async_trait(?Send)]
 /// impl Engine for ExampleEngine {
-///     const NAME: &'static str = "example-engine";
-///
 ///     type Data = ();
+///
+///     fn name(&self) -> String {
+///         "example-engine".to_string()
+///     }
 ///
 ///     async fn start(self, shutdown: Shutdown) -> Result<(), EngineError> {
 ///         Ok(())
@@ -75,7 +78,7 @@ pub fn start_engine<E: Engine + Send + 'static>(
     LocalExecutorBuilder::new()
         .pin_to_cpu(cpu)
         .spin_before_park(std::time::Duration::from_micros(250))
-        .name(E::NAME)
+        .name(&engine.name())
         .spawn(move || async move {
             match engine.start(shutdown).await {
                 Ok(_handle) => {}
@@ -108,9 +111,11 @@ mod tests {
 
     #[async_trait(?Send)]
     impl Engine for TestEngine {
-        const NAME: &'static str = "test-engine";
-
         type Data = TestData;
+
+        fn name(&self) -> String {
+            "test-engine".to_string()
+        }
 
         async fn start(self, shutdown: Shutdown) -> Result<(), EngineError> {
             loop {

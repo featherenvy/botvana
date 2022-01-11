@@ -32,7 +32,7 @@ where
         LocalExecutorBuilder::new()
             .pin_to_cpu(cpu)
             .spin_before_park(std::time::Duration::from_micros(250))
-            .name(E::NAME)
+            .name(&self.engine.name())
             .spawn(move || async move {
                 match self.engine.start(shutdown).await {
                     Ok(_handle) => {}
@@ -58,9 +58,11 @@ mod tests {
 
     #[async_trait(?Send)]
     impl Engine for TestEngine {
-        const NAME: &'static str = "test-engine";
-
         type Data = ();
+
+        fn name(&self) -> String {
+            "test-engine".to_string()
+        }
 
         async fn start(self, shutdown: Shutdown) -> Result<(), EngineError> {
             loop {

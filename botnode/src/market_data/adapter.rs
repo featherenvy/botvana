@@ -7,6 +7,8 @@ use crate::{market_data::prelude::*, prelude::*};
 /// Market data adapter trait
 #[async_trait(?Send)]
 pub trait MarketDataAdapter {
+    const NAME: &'static str;
+
     /// Fetches and returns markets information
     async fn fetch_markets(&self) -> Result<Box<[Market]>, MarketDataError>;
 
@@ -56,6 +58,8 @@ pub trait WsMarketDataAdapter {
     /// Returns throughput metrics
     fn throughput_metrics(&self) -> &Throughput<StdInstant, RefCell<metered::common::TxPerSec>>;
 
+    const NAME: &'static str = "binance";
+
     /// Processes Websocket text message
     fn process_ws_msg(
         &self,
@@ -66,6 +70,8 @@ pub trait WsMarketDataAdapter {
 
 #[async_trait(?Send)]
 pub trait RestMarketDataAdapter {
+    const NAME: &'static str;
+
     /// Fetch orderbook snapshot
     async fn fetch_orderbook_snapshot(
         &self,
@@ -83,9 +89,11 @@ impl<T> MarketDataAdapter for T
 where
     T: WsMarketDataAdapter + RestMarketDataAdapter,
 {
+    const NAME: &'static str = <T as RestMarketDataAdapter>::NAME;
+
     /// Fetches availables markets on Binance
     async fn fetch_markets(&self) -> Result<Box<[Market]>, MarketDataError> {
-        Ok(Box::new([]))
+        <T as RestMarketDataAdapter>::fetch_markets(&self).await
     }
 
     /// Runs the exchange connection event loop
@@ -141,7 +149,11 @@ where
                             msg = &*other.to_string()
                         );
                     }
-                    None | Some(Err(_)) => {
+                    Some(Err(e)) => {
+                        error!(reason = "disconnected", error = &*e.to_string());
+                        break Ok(None);
+                    }
+                    None => {
                         error!(reason = "disconnected");
                         break Ok(None);
                     }
@@ -158,12 +170,4 @@ where
             }
         }
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn name() {}
 }

@@ -36,6 +36,8 @@ impl Default for Binance {
 
 #[async_trait(?Send)]
 impl RestMarketDataAdapter for Binance {
+    const NAME: &'static str = "binance-rest";
+
     async fn fetch_orderbook_snapshot(
         &self,
         symbol: &str,
@@ -63,7 +65,21 @@ impl RestMarketDataAdapter for Binance {
 
     /// Fetches availables markets on Binance
     async fn fetch_markets(&self) -> Result<Box<[Market]>, MarketDataError> {
-        Ok(Box::new([]))
+        let client: surf::Client = surf::Config::new()
+            .set_base_url(Url::parse(&self.api_url).map_err(MarketDataError::with_source)?)
+            .set_timeout(Some(Duration::from_secs(10)))
+            .try_into()
+            .map_err(MarketDataError::with_source)?;
+
+        let mut res = client.get(format!("/api/v3/exchangeInfo")).await.unwrap();
+        let body = res.body_string().await.unwrap();
+
+        let info = serde_json::from_slice::<rest::ExchangeInfo>(body.as_bytes())
+            .map_err(MarketDataError::with_source)?;
+
+        debug!("{} markets on Binance", info.symbols.len());
+
+        Ok(info.symbols.iter().filter_map(|sym| Market::try_from(sym).ok()).collect())
     }
 }
 
@@ -82,7 +98,7 @@ impl WsMarketDataAdapter for Binance {
         let params: Vec<_> = markets
             .iter()
             .map(|market| {
-                let market = market.to_lowercase().replace("-", "");
+                let market = market.to_lowercase().replace("-", "").replace("/", "");
                 [
                     format!("{}@depth@100ms", market),
                     format!("{}@trade", market),
@@ -270,10 +286,13 @@ mod ws {
 }
 
 mod rest {
-    use botvana::market::orderbook::*;
+    use std::convert::TryFrom;
+
     use serde::{Deserialize, Deserializer};
 
-    #[derive(Deserialize)]
+    use botvana::market::orderbook::*;
+
+    #[derive(Debug, Deserialize)]
     pub struct OrderbookSnapshot {
         #[serde(rename = "lastUpdateId")]
         pub last_update_id: u64,
@@ -297,6 +316,45 @@ mod rest {
             .collect();
 
         Ok(PriceLevelsVec::from_tuples_vec_unsorted(&mut levels))
+    }
+
+    #[derive(Debug, Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    pub struct ExchangeInfo<'a> {
+        server_time: f64,
+        #[serde(borrow)]
+        pub symbols: Box<[SymbolInfo<'a>]>,
+    }
+
+    impl<'a> TryFrom<&SymbolInfo<'a>> for botvana::market::Market {
+        type Error = Box<dyn std::error::Error>;
+
+        fn try_from(symbol_info: &SymbolInfo<'a>) -> Result<Self, Self::Error> {
+            let size_increment = 1.0 / 10_i32.pow(symbol_info.base_asset_precision as u32) as f64;
+            let price_increment = 1.0 / 10_i32.pow(symbol_info.base_asset_precision as u32) as f64;
+
+            Ok(Self {
+                name: symbol_info.symbol.to_string(),
+                native_symbol: symbol_info.symbol.to_string(),
+                size_increment,
+                price_increment,
+                r#type: botvana::market::MarketType::Spot(botvana::market::SpotMarket {
+                    base: symbol_info.base_asset.to_string(),
+                    quote: symbol_info.quote_asset.to_string(),
+                }),
+            })
+        }
+    }
+
+    #[derive(Debug, Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    pub struct SymbolInfo<'a> {
+        pub symbol: &'a str,
+        pub status: &'a str,
+        pub base_asset: &'a str,
+        pub base_asset_precision: u8,
+        pub quote_asset: &'a str,
+        pub quote_asset_precision: u8,
     }
 }
 
@@ -389,8 +447,22 @@ mod tests {
         }"#;
         let b = Binance::default();
 
-        let event = b.process_ws_msg(depth_msg, &mut HashMap::new()).unwrap();
+        b.process_ws_msg(depth_msg, &mut HashMap::new()).unwrap();
 
         //assert!(event.is_some());
+    }
+
+    #[test]
+    fn test_try_from_symbol_info_for_markets() {
+        let symbol_info = rest::SymbolInfo {
+            symbol: "BTCUSDT",
+            status: "TRADING",
+            base_asset: "BTC",
+            base_asset_precision: 8,
+            quote_asset: "USDT",
+            quote_asset_precision: 8,
+        };
+
+        botvana::market::Market::try_from(&symbol_info).unwrap();
     }
 }

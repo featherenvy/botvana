@@ -99,9 +99,12 @@ impl ControlEngine {
 
 #[async_trait(?Send)]
 impl Engine for ControlEngine {
-    const NAME: &'static str = "control-engine";
-
     type Data = BotConfiguration;
+
+    /// Returns engine name
+    fn name(&self) -> String {
+        "control-engine".to_string()
+    }
 
     /// Start the control engine
     async fn start(mut self, shutdown: Shutdown) -> Result<(), EngineError> {

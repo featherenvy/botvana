@@ -30,9 +30,11 @@ impl IndicatorEngine {
 
 #[async_trait(?Send)]
 impl Engine for IndicatorEngine {
-    const NAME: &'static str = "indicator-engine";
-
     type Data = IndicatorEvent;
+
+    fn name(&self) -> String {
+        "indicator-engine".to_string()
+    }
 
     async fn start(mut self, shutdown: Shutdown) -> Result<(), EngineError> {
         info!("Starting indicator engine");
