@@ -1,4 +1,4 @@
-mod controller;
+use std::thread;
 
 use crate::prelude::*;
 
@@ -35,9 +35,13 @@ pub trait Engine {
 
     /// Pushes value onto all data transmitter
     fn push_value(&self, val: Self::Data) {
-        self.data_txs()
-            .iter()
-            .for_each(|config_tx| while config_tx.try_push(val.clone()).is_some() {});
+        self.data_txs().iter().for_each(move |config_tx| {
+            let val = val.clone();
+            let mut res = config_tx.try_push(val);
+            while let Some(value) = res {
+                res = Some(value);
+            }
+        });
     }
 }
 
@@ -68,13 +72,13 @@ pub trait Engine {
 ///     }
 /// }
 ///
-/// start_engine(0, ExampleEngine {}, Shutdown::new()).unwrap();
+/// spawn_engine(0, ExampleEngine {}, Shutdown::new()).unwrap();
 /// ```
-pub fn start_engine<E: Engine + Send + 'static>(
+pub fn spawn_engine<E: Engine + Send + 'static>(
     cpu: usize,
     engine: E,
     shutdown: Shutdown,
-) -> Result<(), StartEngineError> {
+) -> Result<thread::JoinHandle<()>, StartEngineError> {
     LocalExecutorBuilder::new()
         .pin_to_cpu(cpu)
         .spin_before_park(std::time::Duration::from_micros(250))
@@ -87,9 +91,7 @@ pub fn start_engine<E: Engine + Send + 'static>(
                 }
             }
         })
-        .map_err(StartEngineError::from)?;
-
-    Ok(())
+        .map_err(StartEngineError::from)
 }
 
 pub fn await_value<T>(rx: spsc_queue::Consumer<T>) -> T {
@@ -141,7 +143,7 @@ mod tests {
         let engine = test_engine();
         let shutdown = Shutdown::new();
 
-        start_engine(0, engine, shutdown.clone()).unwrap();
+        spawn_engine(0, engine, shutdown.clone()).unwrap();
 
         shutdown.shutdown();
 

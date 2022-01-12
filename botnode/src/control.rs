@@ -28,7 +28,8 @@ impl ControlEngine {
         }
     }
 
-    fn start_engines(&mut self, config: BotConfiguration, shutdown: Shutdown) -> Result<(), ()> {
+    /// Spawns the engines based on given configuration and wires them up using channels.
+    fn spawn_engines(&mut self, config: BotConfiguration, shutdown: Shutdown) -> Result<(), ()> {
         let mut market_data_rxs = vec![HashMap::new(), HashMap::new()];
 
         for (i, exchange) in config.exchanges.iter().enumerate() {
@@ -46,7 +47,7 @@ impl ControlEngine {
                         );
                     });
 
-                    start_engine(i + 1, market_data_engine, shutdown.clone())
+                    spawn_engine(i + 1, market_data_engine, shutdown.clone())
                         .expect("failed to start market data engine");
                 }
                 "binance" => {
@@ -61,7 +62,7 @@ impl ControlEngine {
                         );
                     });
 
-                    start_engine(i + 1, market_data_engine, shutdown.clone())
+                    spawn_engine(i + 1, market_data_engine, shutdown.clone())
                         .expect("failed to start market data engine");
                 }
                 _ => {
@@ -76,17 +77,17 @@ impl ControlEngine {
         let trading_engine =
             TradingEngine::new(market_data_rxs.pop().unwrap(), indicator_engine.data_rx());
 
-        start_engine(
+        spawn_engine(
             config.exchanges.len() + 2,
             AuditEngine::new(),
             shutdown.clone(),
         )
         .expect("failed to start audit engine");
 
-        start_engine(config.exchanges.len() + 3, trading_engine, shutdown.clone())
+        spawn_engine(config.exchanges.len() + 3, trading_engine, shutdown.clone())
             .expect("failed to start trading engine");
 
-        start_engine(
+        spawn_engine(
             config.exchanges.len() + 4,
             indicator_engine,
             shutdown.clone(),
@@ -197,7 +198,7 @@ async fn run_control_loop(
 
                             control.bot_configuration = Some(bot_config.clone());
 
-                            control.start_engines(bot_config.clone(), shutdown.clone()).unwrap();
+                            control.spawn_engines(bot_config.clone(), shutdown.clone()).unwrap();
 
                             control.push_value(bot_config);
                         }

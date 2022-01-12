@@ -160,12 +160,9 @@ pub async fn process_bot_message(
                 bots.len()
             );
 
-            let exchanges = botnode_configs
-                .get(bot_id.0 as usize)
-                .unwrap()
-                .exchanges
-                .clone();
-            let markets = Box::new([Box::from("BTC/USD")]);
+            let config = botnode_configs.get(bot_id.0 as usize).unwrap();
+            let exchanges = config.exchanges.clone();
+            let markets = config.markets.clone();
             let out_msg = Message::BotConfiguration(BotConfiguration {
                 bot_id: bot_id.clone(),
                 peer_bots,

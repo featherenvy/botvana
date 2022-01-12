@@ -1,3 +1,8 @@
+//! Market Data Adapter
+//!
+//! This module defines market data adapter traits that when implemented allow
+//! the market data engine to operate on any exchange.
+
 use async_std::task::sleep;
 use async_tungstenite::{async_std::connect_async, tungstenite::Message};
 
@@ -27,6 +32,10 @@ pub trait MarketDataAdapter {
                 error!("Error running exchange connection loop: {}", e);
             }
 
+            if shutdown.shutdown_started() {
+                return Ok(());
+            }
+
             let wait = Duration::from_secs(5);
             warn!("disconnected from the exchange; waiting for {:?}", wait);
             sleep(wait).await;
@@ -42,12 +51,6 @@ pub trait MarketDataAdapter {
     ) -> Result<Option<MarketEvent>, MarketDataError>;
 }
 
-pub enum FeedType {
-    Orderbook,
-    Trades,
-    TopOfBook,
-}
-
 /// Websocket adapter for market data
 pub trait WsMarketDataAdapter {
     fn ws_url(&self) -> Box<str>;
@@ -58,8 +61,6 @@ pub trait WsMarketDataAdapter {
     /// Returns throughput metrics
     fn throughput_metrics(&self) -> &Throughput<StdInstant, RefCell<metered::common::TxPerSec>>;
 
-    const NAME: &'static str = "binance";
-
     /// Processes Websocket text message
     fn process_ws_msg(
         &self,
@@ -68,20 +69,19 @@ pub trait WsMarketDataAdapter {
     ) -> Result<Option<MarketEvent>, MarketDataError>;
 }
 
+/// REST-API market data adapter
 #[async_trait(?Send)]
 pub trait RestMarketDataAdapter {
     const NAME: &'static str;
 
-    /// Fetch orderbook snapshot
+    /// Fetch orderbook snapshot for given symbol
     async fn fetch_orderbook_snapshot(
         &self,
         symbol: &str,
     ) -> Result<PlainOrderbook<f64>, MarketDataError>;
 
-    /// Fetches availables markets on Binance
-    async fn fetch_markets(&self) -> Result<Box<[Market]>, MarketDataError> {
-        Ok(Box::new([]))
-    }
+    /// Fetches availables markets
+    async fn fetch_markets(&self) -> Result<Box<[Market]>, MarketDataError>;
 }
 
 #[async_trait(?Send)]
@@ -125,6 +125,7 @@ where
             .map(|m| (Box::from(*m), PlainOrderbook::with_capacity(100)))
             .collect();
         let mut start = std::time::Instant::now();
+        let throughput = self.throughput_metrics();
 
         loop {
             if shutdown.shutdown_started() {
@@ -133,7 +134,6 @@ where
             }
 
             let msg = ws_stream.next().await;
-            let throughput = self.throughput_metrics();
             measure!(throughput, {
                 match msg {
                     Some(Ok(Message::Text(msg))) => match self.process_ws_msg(&msg, &mut markets) {
@@ -143,6 +143,9 @@ where
                         Ok(None) => {}
                         Err(e) => warn!("Failed to process websocket message: {}", e),
                     },
+                    Some(Ok(Message::Ping(p))) => {
+                        warn!(reason = "ping",);
+                    }
                     Some(Ok(other)) => {
                         warn!(
                             reason = "unexpected-websocket-message",

@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::env::var;
 use std::panic;
 
@@ -11,7 +10,7 @@ use tracing::{debug, error, info};
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt, EnvFilter};
 
-use botnode::{audit::*, control::*, engine::*, indicator::*, market_data::*, trading::*};
+use botnode::{control::*, engine::*};
 use botvana::net::msg::BotId;
 
 #[global_allocator]
@@ -37,16 +36,11 @@ fn main() {
         }));
     }
 
-    // Stage 1: Start the control engine that will connect to botvana-server and
-    // receive the configuration.
-
-    let mut control_engine = ControlEngine::new(bot_id, server_addr);
-    let mut config_rxs: Vec<_> = (1..5)
-        .into_iter()
-        .map(|_| control_engine.data_rx())
-        .collect();
-
-    start_engine(0, control_engine, shutdown.clone()).expect("failed to start control engine");
+    // Start the control engine that will connect to botvana-server and
+    // receive the configuration. Then the control engine spawns other engines
+    // based on the configuration it recieves.
+    let control_engine = ControlEngine::new(bot_id, server_addr);
+    spawn_engine(0, control_engine, shutdown.clone()).expect("failed to start control engine");
 
     // Setup signal handlers for shutdown
     let signals = Signals::new(&[SIGINT, SIGTERM, SIGQUIT]).expect("Failed to register signals");
