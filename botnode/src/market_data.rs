@@ -2,7 +2,6 @@
 pub mod adapter;
 pub mod engine;
 pub mod error;
-pub mod exchange;
 
 // Exchange adapters
 pub mod binance;
@@ -41,4 +40,29 @@ pub enum MarketEventType {
     Trades(Box<str>, Box<[Trade]>),
     OrderbookUpdate(Box<str>, Box<PlainOrderbook<f64>>),
     MidPriceChange(Box<str>, f64, f64),
+}
+
+impl MarketEvent {
+    /// Creates new `MarketEvent` with current timestamp
+    fn new(r#type: MarketEventType) -> Self {
+        Self {
+            r#type,
+            timestamp: Utc::now(),
+        }
+    }
+
+    /// Creates new `MarketEvent::Trades` variant
+    fn trades(market: Box<str>, trades: Box<[Trade]>) -> Self {
+        Self::new(MarketEventType::Trades(market, trades))
+    }
+
+    /// Creates new `MarketEvent::MidPriceChange` variant
+    fn mid_price_change(market: Box<str>, bid: f64, ask: f64) -> Self {
+        Self::new(MarketEventType::MidPriceChange(market, bid, ask))
+    }
+
+    /// Creates new `MarketEvent::OrderbookUpdate` variant
+    fn orderbook_update(market: Box<str>, orderbook: Box<PlainOrderbook<f64>>) -> Self {
+        Self::new(MarketEventType::OrderbookUpdate(market, orderbook))
+    }
 }

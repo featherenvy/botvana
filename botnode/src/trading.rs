@@ -28,6 +28,7 @@ impl Engine for TradingEngine {
         "trading-engine".to_string()
     }
 
+    /// Starts the trading engine
     async fn start(mut self, shutdown: Shutdown) -> Result<(), EngineError> {
         info!("Starting trading engine");
 
@@ -45,9 +46,13 @@ impl Engine for TradingEngine {
 pub async fn run_trading_loop(
     market_data_rxs: HashMap<Box<str>, Vec<spsc_queue::Consumer<MarketEvent>>>,
     indicator_rx: spsc_queue::Consumer<IndicatorEvent>,
-    _shutdown: Shutdown,
+    shutdown: Shutdown,
 ) -> Result<(), EngineError> {
     loop {
+        if shutdown.shutdown_started() {
+            return Ok(());
+        }
+
         for (exchange, rxs) in market_data_rxs.iter() {
             for market_data_rx in rxs {
                 if let Some(event) = market_data_rx.try_pop() {

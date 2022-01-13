@@ -143,8 +143,8 @@ where
                         Ok(None) => {}
                         Err(e) => warn!("Failed to process websocket message: {}", e),
                     },
-                    Some(Ok(Message::Ping(p))) => {
-                        warn!(reason = "ping",);
+                    Some(Ok(Message::Ping(_))) => {
+                        trace!(message = "ping",);
                     }
                     Some(Ok(other)) => {
                         warn!(

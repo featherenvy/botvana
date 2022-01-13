@@ -1,13 +1,14 @@
 use std::thread;
 
 use crate::prelude::*;
-use crate::{audit::*, engine::*, indicator::*, market_data::*, trading::*};
+use crate::{audit::*, engine::*, indicator::*, market_data::*, exchange::*, trading::*};
+use botvana::net::codec;
 
 const CONSUMER_LIMIT: usize = 16;
 
 /// Control engine for Botnode
 ///
-/// The control engine maintains the connection to Botvana server.
+/// Spawns engines per given configuration and connects to botvana-server.
 pub struct ControlEngine {
     bot_id: BotId,
     server_addr: String,
@@ -43,8 +44,11 @@ impl ControlEngine {
                 exchange.as_ref(),
                 shutdown.clone(),
                 &mut market_data_rxs,
-            ).expect(&format!("Failed to start {} market data engine", exchange));
+            )
+            .expect(&format!("Failed to start {} market data engine", exchange));
         }
+
+        let order_engine = ExchangeEngine::new(self.data_rx(), crate::exchange::adapter::NullAdapter {});
 
         let mut indicator_engine =
             IndicatorEngine::new(self.data_rx(), market_data_rxs.pop().unwrap());
@@ -55,11 +59,14 @@ impl ControlEngine {
         spawn_engine(n_exchanges + 2, AuditEngine::new(), shutdown.clone())
             .expect("failed to start audit engine");
 
-        spawn_engine(n_exchanges + 3, trading_engine, shutdown.clone())
+        spawn_engine(n_exchanges + 3, indicator_engine, shutdown.clone())
+            .expect("failed to start indicator engine");
+
+        spawn_engine(n_exchanges + 4, trading_engine, shutdown.clone())
             .expect("failed to start trading engine");
 
-        spawn_engine(n_exchanges + 4, indicator_engine, shutdown.clone())
-            .expect("failed to start indicator engine");
+        spawn_engine(n_exchanges + 5, order_engine, shutdown.clone())
+            .expect("failed to start order engine");
 
         Ok(())
     }
@@ -174,18 +181,7 @@ async fn run_control_loop(
         .delay_shutdown_token()
         .map_err(EngineError::with_source)?;
 
-    control.status = BotnodeStatus::Connecting;
-
-    let stream = TcpStream::connect(control.server_addr.clone())
-        .await
-        .map_err(EngineError::with_source)?;
-
-    let mut framed = Framed::new(stream, BotvanaCodec);
-
-    let msg = Message::hello(control.bot_id.clone());
-    if let Err(e) = framed.send(msg).await {
-        error!("Error framing the message: {:?}", e);
-    }
+    let mut framed = connect_websocket(control).await?;
 
     loop {
         futures::select! {
@@ -233,4 +229,26 @@ async fn run_control_loop(
             }
         }
     }
+}
+
+async fn connect_websocket(
+    control: &mut ControlEngine,
+) -> Result<
+    async_codec::Framed<glommio::net::TcpStream, botvana::net::codec::BotvanaCodec>,
+    EngineError,
+> {
+    control.status = BotnodeStatus::Connecting;
+
+    let stream = TcpStream::connect(control.server_addr.clone())
+        .await
+        .map_err(EngineError::with_source)?;
+
+    let mut framed = Framed::new(stream, BotvanaCodec);
+
+    let msg = Message::hello(control.bot_id.clone());
+    if let Err(e) = framed.send(msg).await {
+        error!("Error framing the message: {:?}", e);
+    }
+
+    Ok(framed)
 }

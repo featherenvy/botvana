@@ -1,4 +1,5 @@
 //! Binance market data adapter
+
 use super::prelude::*;
 use crate::market_data::Market;
 use crate::prelude::*;
@@ -142,10 +143,10 @@ impl WsMarketDataAdapter for Binance {
                         let symbol = trade.symbol;
                         let trade = botvana::market::trade::Trade::new(trade.price, trade.size, dt);
 
-                        Ok(Some(MarketEvent {
-                            r#type: MarketEventType::Trades(Box::from(symbol), Box::new([trade])),
-                            timestamp: Utc::now(),
-                        }))
+                        Ok(Some(MarketEvent::trades(
+                            Box::from(symbol),
+                            Box::new([trade]),
+                        )))
                     }
                     ws::WsMsg::DepthUpdate(update) => {
                         let orderbook = markets.get_mut(update.symbol);
@@ -155,26 +156,20 @@ impl WsMarketDataAdapter for Binance {
                                 &update.asks,
                                 update.event_time,
                             );
-                            Ok(Some(MarketEvent {
-                                r#type: MarketEventType::OrderbookUpdate(
-                                    Box::from(update.symbol),
-                                    Box::new(orderbook.clone()),
-                                ),
-                                timestamp: Utc::now(),
-                            }))
+                            Ok(Some(MarketEvent::orderbook_update(
+                                Box::from(update.symbol),
+                                Box::new(orderbook.clone()),
+                            )))
                         } else {
                             Ok(None)
                         }
                     }
                     ws::WsMsg::OrderbookTicker(book_ticker) => {
-                        return Ok(Some(MarketEvent {
-                            r#type: MarketEventType::MidPriceChange(
-                                Box::from(book_ticker.symbol),
-                                book_ticker.bid_price,
-                                book_ticker.ask_price,
-                            ),
-                            timestamp: Utc::now(),
-                        }))
+                        return Ok(Some(MarketEvent::mid_price_change(
+                            Box::from(book_ticker.symbol),
+                            book_ticker.bid_price,
+                            book_ticker.ask_price,
+                        )))
                     }
                     ws::WsMsg::Response(response) => Ok(None),
                 }

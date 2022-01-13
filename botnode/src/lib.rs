@@ -2,9 +2,9 @@ pub mod audit;
 pub mod control;
 pub mod engine;
 pub mod error;
+pub mod exchange;
 pub mod indicator;
 pub mod market_data;
-pub mod order;
 pub mod trading;
 pub mod util;
 

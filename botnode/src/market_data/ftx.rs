@@ -1,4 +1,5 @@
 //! FTX adapter implementation
+
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -11,6 +12,7 @@ use surf::Url;
 use crate::market_data::{adapter::*, error::*, Market};
 use crate::prelude::*;
 
+/// FTX market data
 #[derive(Default, Debug)]
 pub struct Ftx {
     pub metrics: FtxMetrics,
@@ -113,13 +115,10 @@ impl WsMarketDataAdapter for Ftx {
 
                         trace!("parsing took = {:?}", start.elapsed());
 
-                        Ok(Some(MarketEvent {
-                            r#type: MarketEventType::Trades(
-                                Box::from(ws_msg.market.unwrap()),
-                                trades.into_boxed_slice(),
-                            ),
-                            timestamp: Utc::now(),
-                        }))
+                        Ok(Some(MarketEvent::trades(
+                            Box::from(ws_msg.market.unwrap()),
+                            trades.into_boxed_slice(),
+                        )))
                     }
                     ws::Data::Orderbook(ref mut orderbook_msg) => {
                         let orderbook = match orderbook_msg.action {
@@ -154,13 +153,10 @@ impl WsMarketDataAdapter for Ftx {
                             }
                         };
 
-                        Ok(Some(MarketEvent {
-                            r#type: MarketEventType::OrderbookUpdate(
-                                Box::from(ws_msg.market.unwrap()),
-                                Box::new(orderbook),
-                            ),
-                            timestamp: Utc::now(),
-                        }))
+                        Ok(Some(MarketEvent::orderbook_update(
+                            Box::from(ws_msg.market.unwrap()),
+                            Box::new(orderbook),
+                        )))
                         //info!("got orderbook = {:?}", orderbook);
                     }
                 }
