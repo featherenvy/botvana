@@ -19,7 +19,7 @@ impl EngineError {
 #[derive(Debug, thiserror::Error)]
 #[error("Error starting the engine: {source}")]
 pub struct StartEngineError {
-    source: Box<dyn std::error::Error>,
+    pub source: Box<dyn std::error::Error>,
 }
 
 impl<T: 'static> From<glommio::GlommioError<T>> for StartEngineError {

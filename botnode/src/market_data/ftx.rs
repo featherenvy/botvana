@@ -68,16 +68,19 @@ impl WsMarketDataAdapter for Ftx {
     }
 
     fn subscribe_msgs(&mut self, markets: &[&str]) -> Box<[String]> {
-        markets.iter().map(|market| {
-            info!("Subscribing for {}", market);
+        markets
+            .iter()
+            .map(|market| {
+                info!("Subscribing for {}", market);
 
-            [
-                json!({"op": "subscribe", "channel": "orderbook", "market": market}).to_string(),
-                json!({"op": "subscribe", "channel": "trades", "market": market}).to_string(),
-            ]
-        })
-        .flatten()
-        .collect()
+                [
+                    json!({"op": "subscribe", "channel": "orderbook", "market": market})
+                        .to_string(),
+                    json!({"op": "subscribe", "channel": "trades", "market": market}).to_string(),
+                ]
+            })
+            .flatten()
+            .collect()
     }
 
     /// Processes Websocket text message

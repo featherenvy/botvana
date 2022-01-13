@@ -1,3 +1,5 @@
+use std::thread;
+
 use crate::prelude::*;
 use crate::{audit::*, engine::*, indicator::*, market_data::*, trading::*};
 
@@ -31,44 +33,17 @@ impl ControlEngine {
     /// Spawns the engines based on given configuration and wires them up using channels.
     fn spawn_engines(&mut self, config: BotConfiguration, shutdown: Shutdown) -> Result<(), ()> {
         let mut market_data_rxs = vec![HashMap::new(), HashMap::new()];
+        let n_exchanges = config.exchanges.len();
 
         for (i, exchange) in config.exchanges.iter().enumerate() {
             debug!("starting exchange {:?}", exchange);
 
-            match exchange.as_ref() {
-                "ftx" => {
-                    let ftx_adapter = crate::market_data::ftx::Ftx::default();
-                    let mut market_data_engine = MarketDataEngine::new(self.data_rx(), ftx_adapter);
-
-                    market_data_rxs.iter_mut().for_each(|rx| {
-                        rx.insert(
-                            exchange.clone(),
-                            vec![market_data_engine.data_rx(), market_data_engine.data_rx()],
-                        );
-                    });
-
-                    spawn_engine(i + 1, market_data_engine, shutdown.clone())
-                        .expect("failed to start market data engine");
-                }
-                "binance" => {
-                    let binance_adapter = crate::market_data::binance::Binance::default();
-                    let mut market_data_engine =
-                        MarketDataEngine::new(self.data_rx(), binance_adapter);
-
-                    market_data_rxs.iter_mut().for_each(|rx| {
-                        rx.insert(
-                            exchange.clone(),
-                            vec![market_data_engine.data_rx(), market_data_engine.data_rx()],
-                        );
-                    });
-
-                    spawn_engine(i + 1, market_data_engine, shutdown.clone())
-                        .expect("failed to start market data engine");
-                }
-                _ => {
-                    error!("Unknown exchange {}", exchange);
-                }
-            }
+            self.spawn_market_engine(
+                i + 1,
+                exchange.as_ref(),
+                shutdown.clone(),
+                &mut market_data_rxs,
+            ).expect(&format!("Failed to start {} market data engine", exchange));
         }
 
         let mut indicator_engine =
@@ -77,24 +52,59 @@ impl ControlEngine {
         let trading_engine =
             TradingEngine::new(market_data_rxs.pop().unwrap(), indicator_engine.data_rx());
 
-        spawn_engine(
-            config.exchanges.len() + 2,
-            AuditEngine::new(),
-            shutdown.clone(),
-        )
-        .expect("failed to start audit engine");
+        spawn_engine(n_exchanges + 2, AuditEngine::new(), shutdown.clone())
+            .expect("failed to start audit engine");
 
-        spawn_engine(config.exchanges.len() + 3, trading_engine, shutdown.clone())
+        spawn_engine(n_exchanges + 3, trading_engine, shutdown.clone())
             .expect("failed to start trading engine");
 
-        spawn_engine(
-            config.exchanges.len() + 4,
-            indicator_engine,
-            shutdown.clone(),
-        )
-        .expect("failed to start indicator engine");
+        spawn_engine(n_exchanges + 4, indicator_engine, shutdown.clone())
+            .expect("failed to start indicator engine");
 
         Ok(())
+    }
+
+    fn spawn_market_engine(
+        &mut self,
+        cpu: usize,
+        exchange: &str,
+        shutdown: Shutdown,
+        market_data_rxs: &mut Vec<HashMap<Box<str>, Vec<spsc_queue::Consumer<MarketEvent>>>>,
+    ) -> Result<thread::JoinHandle<()>, StartEngineError> {
+        match exchange {
+            "ftx" => {
+                let ftx_adapter = crate::market_data::ftx::Ftx::default();
+                let mut market_data_engine = MarketDataEngine::new(self.data_rx(), ftx_adapter);
+
+                market_data_rxs.iter_mut().for_each(|rx| {
+                    rx.insert(
+                        Box::from(exchange),
+                        vec![market_data_engine.data_rx(), market_data_engine.data_rx()],
+                    );
+                });
+
+                spawn_engine(cpu, market_data_engine, shutdown)
+            }
+            "binance" => {
+                let binance_adapter = crate::market_data::binance::Binance::default();
+                let mut market_data_engine = MarketDataEngine::new(self.data_rx(), binance_adapter);
+
+                market_data_rxs.iter_mut().for_each(|rx| {
+                    rx.insert(
+                        Box::from(exchange),
+                        vec![market_data_engine.data_rx(), market_data_engine.data_rx()],
+                    );
+                });
+
+                spawn_engine(cpu, market_data_engine, shutdown)
+            }
+            _ => {
+                error!("Unknown exchange {}", exchange);
+                Err(StartEngineError {
+                    source: "asd".into(),
+                })
+            }
+        }
     }
 }
 
