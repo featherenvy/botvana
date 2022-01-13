@@ -160,14 +160,13 @@ pub async fn process_bot_message(
                 bots.len()
             );
 
-            let markets = botnode_configs
-                .get(bot_id.0 as usize)
-                .unwrap()
-                .markets
-                .clone();
+            let config = botnode_configs.get(bot_id.0 as usize).unwrap();
+            let exchanges = config.exchanges.clone();
+            let markets = config.markets.clone();
             let out_msg = Message::BotConfiguration(BotConfiguration {
                 bot_id: bot_id.clone(),
                 peer_bots,
+                exchanges,
                 markets,
                 indicators: Box::new([]),
             });

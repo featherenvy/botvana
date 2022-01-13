@@ -11,6 +11,18 @@ pub struct Trade {
     pub received_at: std::time::Instant,
 }
 
+impl Trade {
+    /// Creates new trade
+    pub fn new(price: f64, size: f64, time: DateTime<Utc>) -> Self {
+        Self {
+            price,
+            size,
+            time,
+            received_at: std::time::Instant::now(),
+        }
+    }
+}
+
 /// Columnar struct of trades
 pub struct TradesVec {
     pub prices: Vec<f64>,

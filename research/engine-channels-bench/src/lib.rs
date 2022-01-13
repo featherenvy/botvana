@@ -46,12 +46,3 @@ pub fn start_engine<E: StartEngine + Send + 'static>(
 
     Ok(EngineHandle {})
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
-    }
-}

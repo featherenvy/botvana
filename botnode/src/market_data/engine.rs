@@ -7,7 +7,9 @@ pub const CONSUMER_LIMIT: usize = 16;
 
 pub type MarketDataProducers = ArrayVec<spsc_queue::Producer<MarketEvent>, CONSUMER_LIMIT>;
 
-/// Engine that maintains connections to exchanges and produces raw market data
+/// Market Data Engine
+///
+/// It maintains connection to the exchange and produces raw market data.
 pub struct MarketDataEngine<A: MarketDataAdapter> {
     adapter: A,
     config_rx: spsc_queue::Consumer<BotConfiguration>,
@@ -26,14 +28,17 @@ impl<A: MarketDataAdapter> MarketDataEngine<A> {
 
 #[async_trait(?Send)]
 impl<A: MarketDataAdapter> Engine for MarketDataEngine<A> {
-    const NAME: &'static str = "market-data-engine";
-
     type Data = MarketEvent;
+
+    fn name(&self) -> String {
+        format!("market-data-{}", A::NAME)
+    }
 
     /// Start the market data engine
     async fn start(mut self, shutdown: Shutdown) -> Result<(), EngineError> {
-        info!("Starting market data engine");
+        info!("Starting market data engine for {}", A::NAME);
 
+        // First, fetch available markets using the adapter
         match self.adapter.fetch_markets().await {
             Ok(markets) => {
                 let event = MarketEvent {
@@ -47,14 +52,20 @@ impl<A: MarketDataAdapter> Engine for MarketDataEngine<A> {
             }
         };
 
+        // Await configuration from botvana-server
         debug!("Waiting for configuration");
         let config = await_value(self.config_rx);
         debug!("Got config = {:?}", config);
+        let markets: Vec<_> = config
+            .markets
+            .iter()
+            .map(|market| market.as_ref())
+            .collect();
 
         info!("Running loop w/ markets = {:?}", config.markets);
         if let Err(e) = self
             .adapter
-            .run_loop(self.data_txs, config.markets, shutdown)
+            .run_loop(self.data_txs, &markets[..], shutdown)
             .await
         {
             error!("Error running loop: {}", e);

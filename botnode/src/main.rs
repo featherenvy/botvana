@@ -10,7 +10,7 @@ use tracing::{debug, error, info};
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt, EnvFilter};
 
-use botnode::{audit::*, control::*, engine::*, indicator::*, market_data::*, trading::*};
+use botnode::{control::*, engine::*};
 use botvana::net::msg::BotId;
 
 #[global_allocator]
@@ -36,33 +36,11 @@ fn main() {
         }));
     }
 
-    // Stage 1: create the engines & wire them up
-
-    let mut control_engine = ControlEngine::new(bot_id, server_addr);
-
-    let ftx_adapter = botnode::market_data::ftx::Ftx {
-        metrics: botnode::market_data::ftx::FtxMetrics::default(),
-    };
-    let mut market_data_engine = MarketDataEngine::new(control_engine.data_rx(), ftx_adapter);
-
-    let mut indicator_engine =
-        IndicatorEngine::new(control_engine.data_rx(), market_data_engine.data_rx());
-
-    let trading_engine =
-        TradingEngine::new(market_data_engine.data_rx(), indicator_engine.data_rx());
-
-    // Stage 2: start the engines
-
-    start_engine(4, AuditEngine::new(), shutdown.clone()).expect("failed to start audit engine");
-
-    start_engine(3, trading_engine, shutdown.clone()).expect("failed to start trading engine");
-
-    start_engine(2, indicator_engine, shutdown.clone()).expect("failed to start indicator engine");
-
-    start_engine(1, market_data_engine, shutdown.clone())
-        .expect("failed to start market data engine");
-
-    start_engine(0, control_engine, shutdown.clone()).expect("failed to start control engine");
+    // Start the control engine that will connect to botvana-server and
+    // receive the configuration. Then the control engine spawns other engines
+    // based on the configuration it recieves.
+    let control_engine = ControlEngine::new(bot_id, server_addr);
+    spawn_engine(0, control_engine, shutdown.clone()).expect("failed to start control engine");
 
     // Setup signal handlers for shutdown
     let signals = Signals::new(&[SIGINT, SIGTERM, SIGQUIT]).expect("Failed to register signals");

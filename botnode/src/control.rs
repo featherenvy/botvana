@@ -1,4 +1,7 @@
+use std::thread;
+
 use crate::prelude::*;
+use crate::{audit::*, engine::*, indicator::*, market_data::*, trading::*};
 
 const CONSUMER_LIMIT: usize = 16;
 
@@ -15,6 +18,7 @@ pub struct ControlEngine {
 }
 
 impl ControlEngine {
+    /// Create new control engine
     pub fn new<T: ToString>(bot_id: BotId, server_addr: T) -> Self {
         Self {
             bot_id,
@@ -25,14 +29,95 @@ impl ControlEngine {
             bot_configuration: None,
         }
     }
+
+    /// Spawns the engines based on given configuration and wires them up using channels.
+    fn spawn_engines(&mut self, config: BotConfiguration, shutdown: Shutdown) -> Result<(), ()> {
+        let mut market_data_rxs = vec![HashMap::new(), HashMap::new()];
+        let n_exchanges = config.exchanges.len();
+
+        for (i, exchange) in config.exchanges.iter().enumerate() {
+            debug!("starting exchange {:?}", exchange);
+
+            self.spawn_market_engine(
+                i + 1,
+                exchange.as_ref(),
+                shutdown.clone(),
+                &mut market_data_rxs,
+            ).expect(&format!("Failed to start {} market data engine", exchange));
+        }
+
+        let mut indicator_engine =
+            IndicatorEngine::new(self.data_rx(), market_data_rxs.pop().unwrap());
+
+        let trading_engine =
+            TradingEngine::new(market_data_rxs.pop().unwrap(), indicator_engine.data_rx());
+
+        spawn_engine(n_exchanges + 2, AuditEngine::new(), shutdown.clone())
+            .expect("failed to start audit engine");
+
+        spawn_engine(n_exchanges + 3, trading_engine, shutdown.clone())
+            .expect("failed to start trading engine");
+
+        spawn_engine(n_exchanges + 4, indicator_engine, shutdown.clone())
+            .expect("failed to start indicator engine");
+
+        Ok(())
+    }
+
+    fn spawn_market_engine(
+        &mut self,
+        cpu: usize,
+        exchange: &str,
+        shutdown: Shutdown,
+        market_data_rxs: &mut Vec<HashMap<Box<str>, Vec<spsc_queue::Consumer<MarketEvent>>>>,
+    ) -> Result<thread::JoinHandle<()>, StartEngineError> {
+        match exchange {
+            "ftx" => {
+                let ftx_adapter = crate::market_data::ftx::Ftx::default();
+                let mut market_data_engine = MarketDataEngine::new(self.data_rx(), ftx_adapter);
+
+                market_data_rxs.iter_mut().for_each(|rx| {
+                    rx.insert(
+                        Box::from(exchange),
+                        vec![market_data_engine.data_rx(), market_data_engine.data_rx()],
+                    );
+                });
+
+                spawn_engine(cpu, market_data_engine, shutdown)
+            }
+            "binance" => {
+                let binance_adapter = crate::market_data::binance::Binance::default();
+                let mut market_data_engine = MarketDataEngine::new(self.data_rx(), binance_adapter);
+
+                market_data_rxs.iter_mut().for_each(|rx| {
+                    rx.insert(
+                        Box::from(exchange),
+                        vec![market_data_engine.data_rx(), market_data_engine.data_rx()],
+                    );
+                });
+
+                spawn_engine(cpu, market_data_engine, shutdown)
+            }
+            _ => {
+                error!("Unknown exchange {}", exchange);
+                Err(StartEngineError {
+                    source: "asd".into(),
+                })
+            }
+        }
+    }
 }
 
 #[async_trait(?Send)]
 impl Engine for ControlEngine {
-    const NAME: &'static str = "control-engine";
-
     type Data = BotConfiguration;
 
+    /// Returns engine name
+    fn name(&self) -> String {
+        "control-engine".to_string()
+    }
+
+    /// Start the control engine
     async fn start(mut self, shutdown: Shutdown) -> Result<(), EngineError> {
         info!("Starting control engine");
 
@@ -53,21 +138,26 @@ impl Engine for ControlEngine {
         config_rx
     }
 
+    /// Returns config transmitters used to notify other engines
     fn data_txs(&self) -> &[spsc_queue::Producer<Self::Data>] {
         self.config_txs.as_slice()
     }
 }
 
 #[derive(Debug, thiserror::Error)]
-#[error("{msg}")]
+#[error("Control engine error: {msg}")]
 pub struct ControlEngineError {
     msg: &'static str,
 }
 
+/// Botnode status
 #[derive(Clone, PartialEq)]
 enum BotnodeStatus {
+    /// Connecting to botvana-server
     Connecting,
+    /// Connected to botvana-server
     Online,
+    /// Not connected to botvana-server
     Offline,
 }
 
@@ -79,6 +169,7 @@ async fn run_control_loop(
     control: &mut ControlEngine,
     shutdown: Shutdown,
 ) -> Result<(), EngineError> {
+    // Get a token to delay shutdown until the token is dropped
     let _token = shutdown
         .delay_shutdown_token()
         .map_err(EngineError::with_source)?;
@@ -100,6 +191,7 @@ async fn run_control_loop(
         futures::select! {
             msg = framed.next().fuse() => {
                 debug!("msg = {:?}", msg);
+
                 match msg {
                     Some(Ok(msg)) => {
                         if matches!(
@@ -116,15 +208,15 @@ async fn run_control_loop(
 
                             control.bot_configuration = Some(bot_config.clone());
 
+                            control.spawn_engines(bot_config.clone(), shutdown.clone()).unwrap();
+
                             control.push_value(bot_config);
                         }
                     }
                     Some(Err(e)) => {
-                        error!("Botvana connection error: {:?}", e);
                         return Err(EngineError::with_source(e));
                     }
                     None => {
-                        error!("disconnected from botvana-server");
                         return Err(EngineError::with_source(ControlEngineError {
                             msg: "Disconnected from botvana-server"
                         }));
@@ -132,7 +224,9 @@ async fn run_control_loop(
                 }
             }
             _ = async_std::task::sleep(control.ping_interval).fuse() => {
-                framed.send(Message::ping()).await.unwrap();
+                if let Err(e) = framed.send(Message::ping()).await {
+                    error!("Failed to send ping message: {:?}", e);
+                }
             }
             _ = shutdown.wait_shutdown_triggered().fuse() => {
                 break Ok(());

@@ -4,14 +4,14 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::time::Duration;
 
-use async_tungstenite::{async_std::connect_async, tungstenite::Message};
-use metered::{clear::Clear, time_source::StdInstant, *};
+use metered::{time_source::StdInstant, *};
 use serde_json::json;
 use surf::Url;
 
 use crate::market_data::{adapter::*, error::*, Market};
 use crate::prelude::*;
 
+#[derive(Default, Debug)]
 pub struct Ftx {
     pub metrics: FtxMetrics,
 }
@@ -22,15 +22,10 @@ pub struct FtxMetrics {
 }
 
 #[async_trait(?Send)]
-impl MarketDataAdapter for Ftx {
-    fn trade_stream(&self) -> TradeStream {
-        TradeStream {}
-    }
+impl RestMarketDataAdapter for Ftx {
+    const NAME: &'static str = "ftx-rest";
 
-    fn orderbook_stream(&self) -> OrderbookStream {
-        OrderbookStream {}
-    }
-
+    /// Fetches available markets on FTX
     async fn fetch_markets(&self) -> Result<Box<[Market]>, MarketDataError> {
         let client: surf::Client = surf::Config::new()
             .set_base_url(Url::parse("https://ftx.com").map_err(MarketDataError::with_source)?)
@@ -41,12 +36,6 @@ impl MarketDataAdapter for Ftx {
         let mut res = client.get("/api/markets").await.unwrap();
         let body = res.body_string().await.unwrap();
 
-        // let mut file = ImmutableFileBuilder::new(&format!("http-vcr"))
-        //     .build_sink()
-        //     .await?;
-        // file.write_all(body.as_bytes()).await.unwrap();
-        // file.seal().await;
-
         let root = serde_json::from_slice::<rest::ResponseRoot>(body.as_bytes())
             .map_err(MarketDataError::with_source)?;
         let result: &rest::ResponseResult = root.result.borrow();
@@ -55,167 +44,125 @@ impl MarketDataAdapter for Ftx {
 
         Ok(markets
             .iter()
-            .filter_map(|m| Market::try_from(m.borrow()).ok())
+            .filter_map(|m| {
+                <Market as TryFrom<&'_ rest::MarketInfo<'_>>>::try_from(m.borrow()).ok()
+            })
             .collect())
     }
 
-    /// Runs the websocket loop until Shutdown signal
-    async fn run_exchange_connection_loop(
-        &mut self,
-        data_txs: &crate::market_data::MarketDataProducers,
-        markets: &[Box<str>],
-        shutdown: &Shutdown,
-    ) -> Result<Option<MarketEvent>, MarketDataError> {
-        let _token = shutdown
-            .delay_shutdown_token()
-            .map_err(MarketDataError::with_source)?;
-        let url = "wss://ftx.com/ws";
-        info!("connecting to {}", url);
-        let (mut ws_stream, _) = connect_async(url)
-            .await
-            .map_err(MarketDataError::with_source)?;
-
-        for market in markets.iter() {
-            info!("Subscribing for {}", market);
-
-            let subscribe_msg =
-                json!({"op": "subscribe", "channel": "orderbook", "market": market});
-            ws_stream
-                .send(Message::text(subscribe_msg.to_string()))
-                .await
-                .map_err(MarketDataError::with_source)?;
-
-            let subscribe_msg = json!({"op": "subscribe", "channel": "trades", "market": market});
-            ws_stream
-                .send(Message::text(subscribe_msg.to_string()))
-                .await
-                .map_err(MarketDataError::with_source)?;
-        }
-
-        let mut markets: HashMap<Box<str>, PlainOrderbook<_>> = markets
-            .iter()
-            .map(|m| (m.clone(), PlainOrderbook::with_capacity(100)))
-            .collect();
-        let mut start = std::time::Instant::now();
-
-        loop {
-            if shutdown.shutdown_started() {
-                info!("Market data engine shutting down");
-                break Ok(None);
-            }
-
-            let msg = ws_stream.next().await;
-            let throughput = &self.metrics.throughput;
-            measure!(throughput, {
-                match msg {
-                    Some(Ok(Message::Text(msg))) => match process_ws_msg(&msg, &mut markets) {
-                        Ok(event) => data_txs.iter().for_each(|config_tx| {
-                            while config_tx.try_push(event.clone()).is_some() {}
-                        }),
-                        Err(e) => warn!("Failed to process websocket message: {}", e),
-                    },
-                    Some(Ok(other)) => {
-                        warn!(
-                            reason = "unexpected-websocket-message",
-                            msg = &*other.to_string()
-                        );
-                    }
-                    None | Some(Err(_)) => {
-                        error!(reason = "disconnected");
-                        break Ok(None);
-                    }
-                }
-            });
-
-            if start.elapsed().as_secs() >= 5 {
-                start = std::time::Instant::now();
-                info!(
-                    "mean throughput over last 5s = {:?}",
-                    throughput.0.borrow().hdr_histogram.mean()
-                );
-                throughput.clear();
-            }
-        }
+    async fn fetch_orderbook_snapshot(
+        &self,
+        symbol: &str,
+    ) -> Result<PlainOrderbook<f64>, MarketDataError> {
+        Ok(PlainOrderbook::<f64>::new())
     }
 }
 
-/// Processes Websocket text message
-pub fn process_ws_msg(
-    msg: &str,
-    markets: &mut HashMap<Box<str>, PlainOrderbook<f64>>,
-) -> Result<MarketEvent, MarketDataError> {
-    let start = std::time::Instant::now();
-    let ws_msg = serde_json::from_slice::<ws::WsMsg>(msg.as_bytes());
+impl WsMarketDataAdapter for Ftx {
+    fn throughput_metrics(&self) -> &Throughput<StdInstant, RefCell<metered::common::TxPerSec>> {
+        &self.metrics.throughput
+    }
 
-    match ws_msg {
-        Err(e) => {
-            error!("ws_msg {}", msg);
+    fn ws_url(&self) -> Box<str> {
+        Box::from("wss://ftx.com/ws")
+    }
 
-            Err(MarketDataError {
-                source: Box::new(e),
+    fn subscribe_msgs(&mut self, markets: &[&str]) -> Box<[String]> {
+        markets
+            .iter()
+            .map(|market| {
+                info!("Subscribing for {}", market);
+
+                [
+                    json!({"op": "subscribe", "channel": "orderbook", "market": market})
+                        .to_string(),
+                    json!({"op": "subscribe", "channel": "trades", "market": market}).to_string(),
+                ]
             })
-        }
-        Ok(mut ws_msg) => {
-            let data = ws_msg.data.to_mut();
-            match data {
-                ws::Data::Trades(trades) => {
-                    trace!("got trades = {:?}", trades);
+            .flatten()
+            .collect()
+    }
 
-                    let trades: Vec<_> = trades
-                        .iter()
-                        .filter_map(|trade| botvana::market::trade::Trade::try_from(trade).ok())
-                        .collect();
+    /// Processes Websocket text message
+    fn process_ws_msg(
+        &self,
+        msg: &str,
+        markets: &mut HashMap<Box<str>, PlainOrderbook<f64>>,
+    ) -> Result<Option<MarketEvent>, MarketDataError> {
+        let start = std::time::Instant::now();
+        let ws_msg = serde_json::from_slice::<ws::WsMsg>(msg.as_bytes());
 
-                    trace!("parsing took = {:?}", start.elapsed());
+        match ws_msg {
+            Err(e) => {
+                error!("ws_msg {}", msg);
 
-                    Ok(MarketEvent {
-                        r#type: MarketEventType::Trades(
-                            Box::from(ws_msg.market.unwrap()),
-                            trades.into_boxed_slice(),
-                        ),
-                        timestamp: Utc::now(),
-                    })
-                }
-                ws::Data::Orderbook(ref mut orderbook_msg) => {
-                    let orderbook = match orderbook_msg.action {
-                        "partial" => {
-                            let orderbook = PlainOrderbook {
-                                bids: PriceLevelsVec::from_tuples_vec_unsorted(
-                                    &mut orderbook_msg.bids,
-                                ),
-                                asks: PriceLevelsVec::from_tuples_vec_unsorted(
-                                    &mut orderbook_msg.asks,
-                                ),
-                                time: orderbook_msg.time,
-                            };
-                            info!("orderbook = {:?}", orderbook);
-                            markets.insert(Box::from(ws_msg.market.unwrap()), orderbook.clone());
-                            orderbook
-                        }
-                        "update" => {
-                            let orderbook = markets.get_mut(ws_msg.market.unwrap()).unwrap();
-                            orderbook.update_with_timestamp(
-                                &PriceLevelsVec::from_tuples_vec(&orderbook_msg.bids),
-                                &PriceLevelsVec::from_tuples_vec(&orderbook_msg.asks),
-                                orderbook_msg.time,
-                            );
-                            orderbook.clone()
-                        }
-                        action => {
-                            return Err(MarketDataError::with_source(UnknownVariantError {
-                                variant: action.to_string(),
-                            }))
-                        }
-                    };
+                Err(MarketDataError {
+                    source: Box::new(e),
+                })
+            }
+            Ok(mut ws_msg) => {
+                let data = ws_msg.data.to_mut();
+                match data {
+                    ws::Data::Trades(trades) => {
+                        trace!("got trades = {:?}", trades);
 
-                    Ok(MarketEvent {
-                        r#type: MarketEventType::OrderbookUpdate(
-                            Box::from(ws_msg.market.unwrap()),
-                            Box::new(orderbook),
-                        ),
-                        timestamp: Utc::now(),
-                    })
-                    //info!("got orderbook = {:?}", orderbook);
+                        let trades: Vec<_> = trades
+                            .iter()
+                            .filter_map(|trade| botvana::market::trade::Trade::try_from(trade).ok())
+                            .collect();
+
+                        trace!("parsing took = {:?}", start.elapsed());
+
+                        Ok(Some(MarketEvent {
+                            r#type: MarketEventType::Trades(
+                                Box::from(ws_msg.market.unwrap()),
+                                trades.into_boxed_slice(),
+                            ),
+                            timestamp: Utc::now(),
+                        }))
+                    }
+                    ws::Data::Orderbook(ref mut orderbook_msg) => {
+                        let orderbook = match orderbook_msg.action {
+                            "partial" => {
+                                let orderbook = PlainOrderbook {
+                                    bids: PriceLevelsVec::from_tuples_vec_unsorted(
+                                        &mut orderbook_msg.bids,
+                                    ),
+                                    asks: PriceLevelsVec::from_tuples_vec_unsorted(
+                                        &mut orderbook_msg.asks,
+                                    ),
+                                    time: orderbook_msg.time,
+                                };
+                                info!("orderbook = {:?}", orderbook);
+                                markets
+                                    .insert(Box::from(ws_msg.market.unwrap()), orderbook.clone());
+                                orderbook
+                            }
+                            "update" => {
+                                let orderbook = markets.get_mut(ws_msg.market.unwrap()).unwrap();
+                                orderbook.update_with_timestamp(
+                                    &PriceLevelsVec::from_tuples_vec(&orderbook_msg.bids),
+                                    &PriceLevelsVec::from_tuples_vec(&orderbook_msg.asks),
+                                    orderbook_msg.time,
+                                );
+                                orderbook.clone()
+                            }
+                            action => {
+                                return Err(MarketDataError::with_source(UnknownVariantError {
+                                    variant: action.to_string(),
+                                }))
+                            }
+                        };
+
+                        Ok(Some(MarketEvent {
+                            r#type: MarketEventType::OrderbookUpdate(
+                                Box::from(ws_msg.market.unwrap()),
+                                Box::new(orderbook),
+                            ),
+                            timestamp: Utc::now(),
+                        }))
+                        //info!("got orderbook = {:?}", orderbook);
+                    }
                 }
             }
         }
