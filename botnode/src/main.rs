@@ -10,7 +10,7 @@ use tracing::{debug, error, info};
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt, EnvFilter};
 
-use botnode::{control::*, engine::*};
+use botnode::{control::engine::*, engine::*};
 use botvana::net::msg::BotId;
 
 #[global_allocator]

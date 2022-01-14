@@ -101,6 +101,6 @@ mod tests {
         let bytes: Vec<_> = [1, 10, 0, 0, 0, 0, 0, 0, 0, 77, 1, 1, 0, 0, 0].into();
         let reader = Cursor::new(&bytes);
         let mut framed = Framed::new(reader, BotvanaCodec);
-        while let Some(frame) = framed.next().await.transpose().expect("Failed to read") {}
+        while let Some(_frame) = framed.next().await.transpose().expect("Failed to read") {}
     }
 }

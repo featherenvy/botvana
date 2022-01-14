@@ -9,19 +9,6 @@ pub struct Binance {
     pub metrics: BinanceMetrics,
     cur_idx: u64,
     api_url: Box<str>,
-    markets: Box<[Box<str>]>,
-}
-
-impl Binance {
-    fn new(markets: &[&str]) -> Self {
-        Self {
-            markets: markets
-                .iter()
-                .map(|s| Box::from(s.clone()))
-                .collect::<Box<[_]>>(),
-            ..Default::default()
-        }
-    }
 }
 
 impl Default for Binance {
@@ -30,7 +17,6 @@ impl Default for Binance {
             api_url: Box::from("https://api.binance.com"),
             cur_idx: 0,
             metrics: BinanceMetrics::default(),
-            markets: Box::new([]),
         }
     }
 }
@@ -171,7 +157,7 @@ impl WsMarketDataAdapter for Binance {
                             book_ticker.ask_price,
                         )))
                     }
-                    ws::WsMsg::Response(response) => Ok(None),
+                    ws::WsMsg::Response(_response) => Ok(None),
                 }
             }
         }
@@ -191,8 +177,8 @@ mod ws {
 
     #[derive(Deserialize, Debug)]
     pub struct WsResponse {
-        result: serde_json::Value,
-        id: i32,
+        _result: serde_json::Value,
+        _id: i32,
     }
 
     #[derive(Debug, Deserialize)]
@@ -322,7 +308,7 @@ mod rest {
     #[derive(Debug, Deserialize)]
     #[serde(rename_all = "camelCase")]
     pub struct ExchangeInfo<'a> {
-        server_time: f64,
+        _server_time: f64,
         #[serde(borrow)]
         pub symbols: Box<[SymbolInfo<'a>]>,
     }

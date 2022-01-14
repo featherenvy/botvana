@@ -3,20 +3,19 @@
 //! This module defines market data adapter traits that when implemented allow
 //! the market data engine to operate on any exchange.
 
-use async_std::task::sleep;
-use async_tungstenite::{async_std::connect_async, tungstenite::Message};
-
-use crate::{prelude::*};
+use super::error::ExchangeError;
+use crate::exchange::order_request::OrderRequest;
+use crate::exchange::order_response::OrderResponse;
+use crate::prelude::*;
 
 /// Market data adapter trait
 #[async_trait(?Send)]
 pub trait ExchangeAdapter {
-	const NAME: &'static str;
+    const NAME: &'static str;
 }
 
-pub(crate) struct NullAdapter;
+pub trait HttpExchangeAdapter<T> {
+    fn place_order(order: OrderRequest) -> Result<OrderResponse, ExchangeError>;
 
-impl ExchangeAdapter for NullAdapter {
-    const NAME: &'static str = "null-adapter";
+    fn cancel_order(order: OrderRequest) -> Result<OrderResponse, ExchangeError>;
 }
-

@@ -16,7 +16,6 @@ mod prelude {
     pub use std::time::Duration;
 
     pub use metered::{clear::Clear, time_source::StdInstant, *};
-    use serde_aux::prelude::*;
     pub use serde_json::json;
     pub use surf::Url;
 
