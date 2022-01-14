@@ -40,14 +40,14 @@ no global state is shared between the threads.
 
 Botnode has these engines:
 
-- Control engine: Connects to `botvana-server` and provides configuration for
-  other engines.
-- Market data engine: Connects to the exchange and transforms market data to
+- **Control engine:** Connects to `botvana-server` and spawns all other engines
+  based on configuration.
+- **Market data engine:** Connects to the exchange and transforms market data to
   Botvana's internal types.
-- Indicator engine: Provides indicators built from market data.
-- Trading engine: Makes trading decisions.
-- Exchange engine: Acts as order router and gateway to the exchange.
-- Audit engine: Audits trading activity.
+- **Indicator engine:** Provides indicators built from market data.
+- **Trading engine:** Makes trading decisions.
+- **Exchange engine:** Acts as order router and gateway to the exchange.
+- **Audit engine:** Audits trading activity.
 
 #### botnode architecture
 
