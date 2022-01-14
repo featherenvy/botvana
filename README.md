@@ -46,8 +46,12 @@ Botnode has these engines:
   Botvana's internal types.
 - Indicator engine: Provides indicators built from market data.
 - Trading engine: Makes trading decisions.
-- Order engine: Acts as order router and gateway.
+- Exchange engine: Acts as order router and gateway to the exchange.
 - Audit engine: Audits trading activity.
+
+#### botnode architecture
+
+![The botnode architecture](docs/botnode_architecture.png)
 
 ### botvana-server
 
