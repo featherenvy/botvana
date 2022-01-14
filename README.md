@@ -1,4 +1,4 @@
-# Botvana high-performance trading platform
+# Botvana: high-performance trading platform
 
 Botvana is an open-source, event-driven, and distributed trading platform targeting
 crypto markets. It aims to be high-performance, low-latency, reliable, and
@@ -29,7 +29,7 @@ Botvana is split into these components:
 -   `botvana`: shared platform definitions
 -   `station-egui`: control application
 
-## Supported Exchanges
+### Supported Exchanges
 
 Currently, in the early phase of the project, the supported exchanges are FTX and
 Binance.
