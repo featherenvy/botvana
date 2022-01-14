@@ -1,42 +1,47 @@
-# Botvana trading platform
+# Botvana high-performance trading platform
 
-Botvana is a open-source, event-driven, and distributed trading platform targeting
+Botvana is an open-source, event-driven, and distributed trading platform targeting
 crypto markets. It aims to be high-performance, low-latency, reliable, and
-fault-tolerant. Built in Rust, it allows you to build and operate market making
+fault-tolerant. Built in Rust, it allows you to develop and operate market-making
 and arbitrage strategies.
+
 
 ⚠️ The project is still in very early development ⚠️
 
 ## Principles:
 
--   High-performance: Designed and architected to be high-performance from the
+-   **High-performance:** Designed and architected to be high-performance from the
     ground up. It utilizes thread-per-core architecture to take advantage of
     modern multicore CPUs.
--   Low-latency: Currently utilizing `io_uring` for network connectivity, with
+-   **Low-latency**: Currently utilizing `io_uring` for network connectivity, with
     goals to use `AF_XDP` or kernel by-pass in the future.
--   Reliable: Being built in Rust provides Botvana with  memory safety guarantees
+-   **Reliable**: Being built in Rust provides Botvana with memory safety guarantees
     compared to other systems programming languages.
--   Fault-tolerant: Crypto exchanges are known for unrealiability and so Botvana
+-   **Fault-tolerant:** Crypto exchanges are known for unreliability, so Botvana
     provides explicit fault-tolerant features.
 
 ## Overview
 
 Botvana is split into these components:
 
--   `botnode`: trading bot
+-   `botnode`: high-performance trading bot
 -   `botvana-server`: coordination server
 -   `botvana`: shared platform definitions
 -   `station-egui`: control application
 
-Currently in early phase of the project the supported exchanges are FTX and
+## Supported Exchanges
+
+Currently, in the early phase of the project, the supported exchanges are FTX and
 Binance.
 
-### botnode
+### botnode architecture
 
-`botnode` is Botvana's trading bot. Botnode uses thread-per-core architecture where
-each thread is pinned to exactly one logical CPU core. Each CPU core runs different
-engine with custom event loop. Data is sent between engines using spsc channels and
-no global state is shared between the threads.
+![The botnode architecture](docs/botnode_architecture.png)
+
+Botnode uses thread-per-core architecture where each thread is pinned to exactly
+one logical CPU core. Each CPU core runs a different engine with a custom event loop.
+Data is sent between engines using SPSC channels, and no global state is shared
+between the threads.
 
 Botnode has these engines:
 
@@ -48,10 +53,6 @@ Botnode has these engines:
 - **Trading engine:** Makes trading decisions.
 - **Exchange engine:** Acts as order router and gateway to the exchange.
 - **Audit engine:** Audits trading activity.
-
-#### botnode architecture
-
-![The botnode architecture](docs/botnode_architecture.png)
 
 ### botvana-server
 
