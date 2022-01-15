@@ -56,16 +56,23 @@ impl ControlEngine {
             .expect(&format!("Failed to start {} market data engine", exchange));
         }
 
-        let exchange_engine = ExchangeEngine::new(
+        let (exchange_request_tx, exchange_request_rx) = spsc_queue::make(1);
+
+        let mut exchange_engine = ExchangeEngine::new(
             self.data_rx(),
             crate::exchange::null_adapter::NullAdapter {},
+            exchange_request_rx,
         );
 
         let mut indicator_engine =
             IndicatorEngine::new(self.data_rx(), market_data_rxs.pop().unwrap());
 
-        let trading_engine =
-            TradingEngine::new(market_data_rxs.pop().unwrap(), indicator_engine.data_rx());
+        let trading_engine = TradingEngine::new(
+            market_data_rxs.pop().unwrap(),
+            indicator_engine.data_rx(),
+            exchange_request_tx,
+            exchange_engine.data_rx(),
+        );
 
         spawn_engine(n_exchanges + 2, AuditEngine::new(), shutdown.clone())
             .expect("failed to start audit engine");

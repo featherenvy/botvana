@@ -14,8 +14,12 @@ pub trait ExchangeAdapter {
     const NAME: &'static str;
 }
 
-pub trait HttpExchangeAdapter<T> {
+pub(super) trait HttpExchangeOrderAdapter {
     fn place_order(order: OrderRequest) -> Result<OrderResponse, ExchangeError>;
 
     fn cancel_order(order: OrderRequest) -> Result<OrderResponse, ExchangeError>;
+}
+
+pub(super) trait HttpExchangeCancelAll {
+    fn cancel_all(market: String) -> Result<(), ExchangeError>;
 }

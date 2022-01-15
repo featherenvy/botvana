@@ -5,11 +5,20 @@ use crate::prelude::*;
 pub struct ExchangeEngine<A> {
     adapter: A,
     config_rx: spsc_queue::Consumer<BotConfiguration>,
+    request_rx: spsc_queue::Consumer<super::ExchangeRequest>,
 }
 
 impl<A: ExchangeAdapter> ExchangeEngine<A> {
-    pub fn new(config_rx: spsc_queue::Consumer<BotConfiguration>, adapter: A) -> Self {
-        Self { adapter, config_rx }
+    pub fn new(
+        config_rx: spsc_queue::Consumer<BotConfiguration>,
+        adapter: A,
+        request_rx: spsc_queue::Consumer<super::ExchangeRequest>,
+    ) -> Self {
+        Self {
+            adapter,
+            config_rx,
+            request_rx,
+        }
     }
 }
 
@@ -40,7 +49,7 @@ fn run_event_loop(
 
     loop {
         if shutdown.shutdown_started() {
-            break Ok(())
+            break Ok(());
         }
     }
 }

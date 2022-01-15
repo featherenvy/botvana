@@ -1,16 +1,18 @@
-use eframe::{egui, epi};
-use std::thread::spawn;
-//use tracing::debug;
 use crossbeam_channel::unbounded;
+use eframe::{egui, epi};
 use serde::Deserialize;
+use std::thread::spawn;
 use tracing::{debug, info};
 use tungstenite::{connect, Message};
 use url::Url;
+
+use botvana::market::orderbook::PlainOrderbook;
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 pub struct StationApp {
     bots: Vec<u16>,
     _latencies: Vec<u64>,
+    _orderbooks: Vec<PlainOrderbook<f64>>,
 
     ws_rx: crossbeam_channel::Receiver<WebsocketMessage>,
     ws_tx: crossbeam_channel::Sender<WebsocketMessage>,
@@ -23,6 +25,7 @@ impl Default for StationApp {
         Self {
             bots: vec![],
             _latencies: vec![],
+            _orderbooks: vec![],
             ws_rx,
             ws_tx,
         }
@@ -86,54 +89,39 @@ impl epi::App for StationApp {
             _ => {}
         }
 
+        egui::TopBottomPanel::top("my_panel").show(ctx, |ui| {
+            ui.heading("botvana");
+        });
+
         egui::SidePanel::left("side_panel").show(ctx, |ui| {
             ui.heading("Bots online");
 
             ui.with_layout(egui::Layout::top_down_justified(egui::Align::LEFT), |ui| {
                 for bot in self.bots.iter() {
-                    let label = ui.button(bot.to_string());
+                    let label = ui.button(format!("Bot ID={}", bot.to_string()));
                     if label.clicked() {
                         info!("clicked {}", bot);
                     }
                 }
             });
 
-            //ui.add(egui::Slider::new(value, 0.0..=10.0).text("value"));
-            if ui.button("Increment").clicked() {
-                //*value += 1.0;
-            }
-
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = 1.0;
                     ui.label("powered by ");
-                    ui.hyperlink_to("egui", "https://github.com/emilk/egui");
-                    ui.label(" and ");
-                    ui.hyperlink_to("eframe", "https://github.com/emilk/egui/tree/master/eframe");
+                    ui.hyperlink_to("botvana", "https://github.com/featherenvy/botvana");
                 });
             });
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            // The central panel the region left after adding TopPanel's and SidePanel's
-
             ui.heading("eframe template");
-            ui.hyperlink("https://github.com/emilk/eframe_template");
             ui.add(egui::github_link_file!(
                 "https://github.com/emilk/eframe_template/blob/master/",
                 "Source code."
             ));
             egui::warn_if_debug_build(ui);
         });
-
-        if false {
-            egui::Window::new("Window").show(ctx, |ui| {
-                ui.label("Windows can be moved by dragging them.");
-                ui.label("They are automatically sized based on contents.");
-                ui.label("You can turn on resizing and scrolling if you like.");
-                ui.label("You would normally chose either panels OR windows.");
-            });
-        }
     }
 }
 
