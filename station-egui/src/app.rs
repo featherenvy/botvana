@@ -38,7 +38,7 @@ impl epi::App for StationApp {
     fn setup(
         &mut self,
         _ctx: &egui::CtxRef,
-        _frame: &mut epi::Frame<'_>,
+        _frame: &epi::Frame,
         _storage: Option<&dyn epi::Storage>,
     ) {
         let (mut socket, response) =
@@ -73,7 +73,7 @@ impl epi::App for StationApp {
 
     /// Called each time the UI needs repainting, which may be many times per second.
     /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
-    fn update(&mut self, ctx: &egui::CtxRef, _frame: &mut epi::Frame<'_>) {
+    fn update(&mut self, ctx: &egui::CtxRef, _frame: &epi::Frame) {
         // Examples of how to create different panels and windows.
         // Pick whichever suits you.
         // Tip: a good default choice is to just keep the `CentralPanel`.
@@ -91,7 +91,7 @@ impl epi::App for StationApp {
 
             ui.with_layout(egui::Layout::top_down_justified(egui::Align::LEFT), |ui| {
                 for bot in self.bots.iter() {
-                    let label = ui.button(bot);
+                    let label = ui.button(bot.to_string());
                     if label.clicked() {
                         info!("clicked {}", bot);
                     }
