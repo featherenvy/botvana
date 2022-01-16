@@ -1,6 +1,7 @@
 use crate::prelude::*;
 
 const CONSUMER_LIMIT: usize = 16;
+const QUEUE_LEN: usize = 1024;
 
 /// Indicator producing engine
 pub struct IndicatorEngine {
@@ -47,7 +48,7 @@ impl Engine for IndicatorEngine {
     }
 
     fn data_rx(&mut self) -> spsc_queue::Consumer<Self::Data> {
-        let (data_tx, data_rx) = spsc_queue::make(1);
+        let (data_tx, data_rx) = spsc_queue::make(QUEUE_LEN);
         self.data_txs.push(data_tx);
         data_rx
     }

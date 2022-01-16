@@ -12,6 +12,7 @@ use metered::{time_source::StdInstant, *};
 use serde_json::json;
 use surf::Url;
 
+use botvana::exchange::ExchangeRef;
 use crate::market_data::{adapter::*, error::*, Market};
 use crate::prelude::*;
 
@@ -29,6 +30,7 @@ pub struct FtxMetrics {
 #[async_trait(?Send)]
 impl RestMarketDataAdapter for Ftx {
     const NAME: &'static str = "ftx-rest";
+    const EXCHANGE_REF: ExchangeRef = ExchangeRef::Ftx;
 
     /// Fetches available markets on FTX
     async fn fetch_markets(&self) -> Result<Box<[Market]>, MarketDataError> {
@@ -161,6 +163,11 @@ impl WsMarketDataAdapter for Ftx {
                             Box::new(orderbook),
                         )))
                         //info!("got orderbook = {:?}", orderbook);
+                    }
+                    ws::Data::None(_) => {
+                        info!("none data");
+
+                        Ok(None)
                     }
                 }
             }

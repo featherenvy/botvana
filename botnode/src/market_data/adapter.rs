@@ -3,9 +3,10 @@
 //! This module defines market data adapter traits that when implemented allow
 //! the market data engine to operate on any exchange.
 
-use async_std::task::sleep;
+use glommio::timer::sleep;
 use async_tungstenite::{async_std::connect_async, tungstenite::Message};
 
+use botvana::{exchange::ExchangeRef, market::MarketsVec};
 use crate::market_data::{error::MarketDataError, Market};
 use crate::{market_data::prelude::*, prelude::*};
 
@@ -13,9 +14,10 @@ use crate::{market_data::prelude::*, prelude::*};
 #[async_trait(?Send)]
 pub trait MarketDataAdapter {
     const NAME: &'static str;
+    const EXCHANGE_REF: ExchangeRef;
 
     /// Fetches and returns markets information
-    async fn fetch_markets(&self) -> Result<Box<[Market]>, MarketDataError>;
+    async fn fetch_markets(&self) -> Result<Box<MarketsVec>, MarketDataError>;
 
     /// Runs the adapter event loop
     async fn run_loop(
@@ -33,7 +35,7 @@ pub trait MarketDataAdapter {
             }
 
             if shutdown.shutdown_started() {
-                return Ok(());
+                break Ok(());
             }
 
             let wait = Duration::from_secs(5);
@@ -73,6 +75,7 @@ pub trait WsMarketDataAdapter {
 #[async_trait(?Send)]
 pub trait RestMarketDataAdapter {
     const NAME: &'static str;
+    const EXCHANGE_REF: ExchangeRef;
 
     /// Fetch orderbook snapshot for given symbol
     async fn fetch_orderbook_snapshot(
@@ -90,10 +93,12 @@ where
     T: WsMarketDataAdapter + RestMarketDataAdapter,
 {
     const NAME: &'static str = <T as RestMarketDataAdapter>::NAME;
+    const EXCHANGE_REF: ExchangeRef = <T as RestMarketDataAdapter>::EXCHANGE_REF;
 
     /// Fetches availables markets on Binance
-    async fn fetch_markets(&self) -> Result<Box<[Market]>, MarketDataError> {
-        <T as RestMarketDataAdapter>::fetch_markets(&self).await
+    async fn fetch_markets(&self) -> Result<Box<MarketsVec>, MarketDataError> {
+        let boxed_markets = <T as RestMarketDataAdapter>::fetch_markets(&self).await?;
+        Ok(Box::new(boxed_markets.into()))
     }
 
     /// Runs the exchange connection event loop

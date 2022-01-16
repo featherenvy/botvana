@@ -22,6 +22,7 @@ pub enum Data<'a> {
     Trades(Box<[Trade<'a>]>),
     #[serde(borrow)]
     Orderbook(OrderbookMsg<'a>),
+    None(()),
 }
 
 /// Orderbook message - partial snapshot or update

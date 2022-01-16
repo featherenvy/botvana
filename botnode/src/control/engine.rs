@@ -1,3 +1,5 @@
+use std::pin::Pin;
+use std::task::{Context, Poll};
 use std::thread;
 
 use crate::prelude::*;
@@ -9,6 +11,7 @@ use crate::{
 use super::BotnodeStatus;
 
 const CONSUMER_LIMIT: usize = 16;
+const QUEUE_LEN: usize = 1024;
 
 /// Control engine for Botnode
 ///
@@ -20,6 +23,33 @@ pub struct ControlEngine {
     pub(super) ping_interval: std::time::Duration,
     pub(super) bot_configuration: Option<BotConfiguration>,
     config_txs: ArrayVec<spsc_queue::Producer<BotConfiguration>, CONSUMER_LIMIT>,
+    //market_data_rxs: HashMap<Box<str>, spsc_queue::Consumer<MarketEvent>>,
+    pub(super) market_data_rxs: MarketDataRxs,
+}
+
+pub(super) struct MarketDataRxs {
+    inner: HashMap<Box<str>, spsc_queue::Consumer<MarketEvent>>,
+}
+
+impl Future for &MarketDataRxs {
+    type Output = (Box<str>, MarketEvent);
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        for (exchange, rx) in self.inner.iter() {
+            let value = rx.try_pop();
+            if value.is_some() {
+                return Poll::Ready((exchange.clone(), value.unwrap()));
+            }
+        }
+
+        Poll::Pending
+    }
+}
+
+impl futures::future::FusedFuture for &MarketDataRxs {
+    fn is_terminated(&self) -> bool {
+        false
+    }
 }
 
 impl ControlEngine {
@@ -32,6 +62,9 @@ impl ControlEngine {
             ping_interval: std::time::Duration::from_secs(5),
             config_txs: ArrayVec::<_, CONSUMER_LIMIT>::new(),
             bot_configuration: None,
+            market_data_rxs: MarketDataRxs {
+                inner: HashMap::new(),
+            },
         }
     }
 
@@ -41,8 +74,18 @@ impl ControlEngine {
         config: BotConfiguration,
         shutdown: Shutdown,
     ) -> Result<(), ()> {
-        let mut market_data_rxs = vec![HashMap::new(), HashMap::new()];
         let n_exchanges = config.exchanges.len();
+        // Build market data receiver hashmap for each client:
+        //  - trading engine
+        //  - indicator engine
+        //  - control engine
+        //  - audit engine
+        let mut market_data_rxs = vec![
+            HashMap::new(),
+            HashMap::new(),
+            HashMap::new(),
+            HashMap::new(),
+        ];
 
         for (i, exchange) in config.exchanges.iter().enumerate() {
             debug!("starting exchange {:?}", exchange);
@@ -56,7 +99,11 @@ impl ControlEngine {
             .expect(&format!("Failed to start {} market data engine", exchange));
         }
 
-        let (exchange_request_tx, exchange_request_rx) = spsc_queue::make(1);
+        self.market_data_rxs = MarketDataRxs {
+            inner: market_data_rxs.pop().unwrap(),
+        };
+
+        let (exchange_request_tx, exchange_request_rx) = spsc_queue::make(100);
 
         let mut exchange_engine = ExchangeEngine::new(
             self.data_rx(),
@@ -74,8 +121,12 @@ impl ControlEngine {
             exchange_engine.data_rx(),
         );
 
-        spawn_engine(n_exchanges + 2, AuditEngine::new(), shutdown.clone())
-            .expect("failed to start audit engine");
+        spawn_engine(
+            n_exchanges + 2,
+            AuditEngine::new(market_data_rxs.pop().unwrap()),
+            shutdown.clone(),
+        )
+        .expect("failed to start audit engine");
 
         spawn_engine(n_exchanges + 3, indicator_engine, shutdown.clone())
             .expect("failed to start indicator engine");
@@ -140,11 +191,11 @@ impl Engine for ControlEngine {
     async fn start(mut self, shutdown: Shutdown) -> Result<(), EngineError> {
         info!("Starting control engine");
 
-        async_std::task::sleep(std::time::Duration::from_secs(1)).await;
+        glommio::timer::sleep(std::time::Duration::from_secs(1)).await;
 
         while let Err(e) = super::event_loop::run_control_loop(&mut self, shutdown.clone()).await {
             error!("Control engine error: {:?}", e);
-            async_std::task::sleep(std::time::Duration::from_secs(1)).await;
+            glommio::timer::sleep(std::time::Duration::from_secs(1)).await;
         }
 
         Ok(())
@@ -152,7 +203,7 @@ impl Engine for ControlEngine {
 
     /// Returns dummy data receiver
     fn data_rx(&mut self) -> spsc_queue::Consumer<Self::Data> {
-        let (config_tx, config_rx) = spsc_queue::make(1);
+        let (config_tx, config_rx) = spsc_queue::make(QUEUE_LEN);
         self.config_txs.push(config_tx);
         config_rx
     }

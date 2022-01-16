@@ -24,7 +24,7 @@ mod prelude {
 
 use chrono::{DateTime, Utc};
 
-use botvana::market::{orderbook::PlainOrderbook, trade::Trade, Market};
+use botvana::market::{orderbook::PlainOrderbook, trade::Trade, Market, MarketsVec};
 
 /// Market event enum produced by market data engine
 #[derive(Clone, Debug)]
@@ -35,9 +35,13 @@ pub struct MarketEvent {
 
 #[derive(Clone, Debug)]
 pub enum MarketEventType {
-    Markets(Box<[Market]>),
+    /// Markets update
+    Markets(Box<MarketsVec>),
+    /// Trades happened
     Trades(Box<str>, Box<[Trade]>),
+    /// Orderbook updated
     OrderbookUpdate(Box<str>, Box<PlainOrderbook<f64>>),
+    /// Mid-price changed
     MidPriceChange(Box<str>, f64, f64),
 }
 

@@ -3,6 +3,7 @@
 pub(crate) mod rest;
 pub(crate) mod ws;
 
+use botvana::{exchange::ExchangeRef};
 use super::prelude::*;
 use crate::market_data::Market;
 use crate::prelude::*;
@@ -27,12 +28,13 @@ impl Default for Binance {
 #[async_trait(?Send)]
 impl RestMarketDataAdapter for Binance {
     const NAME: &'static str = "binance-rest";
+    const EXCHANGE_REF: ExchangeRef = ExchangeRef::BinanceSpot;
 
     /// Fetches availables markets on Binance
     async fn fetch_markets(&self) -> Result<Box<[Market]>, MarketDataError> {
         let client: surf::Client = surf::Config::new()
             .set_base_url(Url::parse(&self.api_url).map_err(MarketDataError::with_source)?)
-            .set_timeout(Some(Duration::from_secs(10)))
+            .set_timeout(Some(Duration::from_secs(20)))
             .try_into()
             .map_err(MarketDataError::with_source)?;
 

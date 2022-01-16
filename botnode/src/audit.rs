@@ -3,11 +3,13 @@ use crate::prelude::*;
 
 /// Auditing engine
 #[derive(Default)]
-pub struct AuditEngine {}
+pub struct AuditEngine {
+    market_data_rxs: HashMap<Box<str>, spsc_queue::Consumer<MarketEvent>>,
+}
 
 impl AuditEngine {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(market_data_rxs: HashMap<Box<str>, spsc_queue::Consumer<MarketEvent>>) -> Self {
+        Self { market_data_rxs }
     }
 }
 
@@ -33,8 +35,13 @@ impl Engine for AuditEngine {
 }
 
 /// Audit engine loop
-pub async fn run_audit_loop(_shutdown: Shutdown) -> Result<(), EngineError> {
+pub async fn run_audit_loop(shutdown: Shutdown) -> Result<(), EngineError> {
     // noop for now
-    // loop {}
-    Ok(())
+    loop {
+        if shutdown.shutdown_started() {
+            return Ok(());
+        }
+
+        glommio::timer::sleep(Duration::from_secs(10)).await;
+    }
 }

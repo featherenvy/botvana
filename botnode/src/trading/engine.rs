@@ -44,7 +44,6 @@ impl Engine for TradingEngine {
             self.exchange_rx,
             shutdown,
         )
-        .await
     }
 
     /// Returns dummy data receiver

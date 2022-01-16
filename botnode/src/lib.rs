@@ -10,6 +10,9 @@ pub mod util;
 
 /// Useful prelude for implementing botnode engines
 pub mod prelude {
+    pub use std::collections::HashMap;
+    pub use std::time::Duration;
+
     pub use arrayvec::ArrayVec;
     pub use async_codec::Framed;
     pub use async_shutdown::Shutdown;
@@ -23,8 +26,6 @@ pub mod prelude {
         prelude::*,
         LocalExecutor, LocalExecutorBuilder,
     };
-    pub use std::collections::HashMap;
-    pub use std::num::NonZeroUsize;
     pub use tracing::{debug, error, info, trace, warn};
 
     pub use botvana::{

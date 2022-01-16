@@ -5,6 +5,7 @@ use std::time::SystemTime;
 use serde::{Deserialize, Serialize};
 
 use crate::cfg::BotConfiguration;
+use crate::market::MarketsVec;
 
 /// Botvana protocol message
 #[derive(Serialize, Deserialize, Debug)]
@@ -53,6 +54,10 @@ impl Message {
             Err(_) => panic!("SystemTime before UNIX EPOCH!"),
         }
     }
+
+    pub fn market_list(markets: MarketsVec) -> Self {
+        Self::MarketList(markets)
+    }
 }
 
 /// Unique ID representing bot
@@ -82,12 +87,6 @@ impl BotMetadata {
 #[derive(Serialize, Deserialize, Debug)]
 pub enum BotError {
     ConfigurationError(String),
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct MarketsVec {
-    symbol: Vec<String>,
-    exchange: Vec<String>,
 }
 
 #[cfg(test)]

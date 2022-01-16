@@ -2,6 +2,8 @@ use std::borrow::Cow;
 
 use serde::Deserialize;
 
+use botvana::exchange::ExchangeRef;
+
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseRoot<'a> {
@@ -67,6 +69,7 @@ impl<'a> TryFrom<&'a MarketInfo<'a>> for botvana::market::Market {
         };
 
         Ok(Self {
+            exchange: ExchangeRef::Ftx,
             name: market.name.to_string(),
             native_symbol: market.name.to_string(),
             size_increment: market.size_increment,

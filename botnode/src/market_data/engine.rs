@@ -3,6 +3,7 @@
 use crate::market_data::{adapter::*, MarketEvent};
 use crate::prelude::*;
 
+pub const MARKET_DATA_QUEUE_LEN: usize = 1024;
 pub const CONSUMER_LIMIT: usize = 16;
 
 pub type MarketDataProducers = ArrayVec<spsc_queue::Producer<MarketEvent>, CONSUMER_LIMIT>;
@@ -42,7 +43,7 @@ impl<A: MarketDataAdapter> Engine for MarketDataEngine<A> {
         match self.adapter.fetch_markets().await {
             Ok(markets) => {
                 let event = MarketEvent {
-                    r#type: MarketEventType::Markets(markets),
+                    r#type: MarketEventType::Markets(markets.into()),
                     timestamp: Utc::now(),
                 };
                 self.push_value(event);
@@ -80,7 +81,7 @@ impl<A: MarketDataAdapter> Engine for MarketDataEngine<A> {
 
     /// Returns cloned market event receiver
     fn data_rx(&mut self) -> spsc_queue::Consumer<Self::Data> {
-        let (data_tx, data_rx) = spsc_queue::make(1);
+        let (data_tx, data_rx) = spsc_queue::make(MARKET_DATA_QUEUE_LEN);
         self.data_txs.push(data_tx);
         data_rx
     }
