@@ -5,7 +5,7 @@ use crate::{
 
 /// Trading engine
 pub struct TradingEngine {
-    market_data_rxs: HashMap<Box<str>, spsc_queue::Consumer<MarketEvent>>,
+    market_data_rxs: ConsumersMap<Box<str>, MarketEvent>,
     indicator_rx: spsc_queue::Consumer<IndicatorEvent>,
     exchange_tx: spsc_queue::Producer<ExchangeRequest>,
     exchange_rx: spsc_queue::Consumer<ExchangeEvent>,
@@ -15,7 +15,7 @@ pub struct TradingEngine {
 
 impl TradingEngine {
     pub fn new(
-        market_data_rxs: HashMap<Box<str>, spsc_queue::Consumer<MarketEvent>>,
+        market_data_rxs: ConsumersMap<Box<str>, MarketEvent>,
         indicator_rx: spsc_queue::Consumer<IndicatorEvent>,
         exchange_tx: spsc_queue::Producer<ExchangeRequest>,
         exchange_rx: spsc_queue::Consumer<ExchangeEvent>,

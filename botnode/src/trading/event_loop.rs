@@ -5,7 +5,7 @@ const STALE_MARKET_EVENT_MS: u64 = 10;
 
 /// Runs trading event loop
 pub fn run_loop(
-    market_data_rxs: HashMap<Box<str>, spsc_queue::Consumer<MarketEvent>>,
+    market_data_rxs: ConsumersMap<Box<str>, MarketEvent>,
     indicator_rx: spsc_queue::Consumer<IndicatorEvent>,
     _exchange_tx: spsc_queue::Producer<ExchangeRequest>,
     exchange_rx: spsc_queue::Consumer<ExchangeEvent>,

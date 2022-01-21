@@ -1,3 +1,4 @@
+use std::hash::Hash;
 use crate::prelude::*;
 
 const FAIL_LIMIT: usize = 100;
@@ -45,15 +46,24 @@ where
 }
 
 /// Map of consumers for inter-engine channel
+#[derive(Debug)]
 pub struct ConsumersMap<K, V>(HashMap<K, spsc_queue::Consumer<V>>);
 
-impl<K, V> ConsumersMap<K, V> {
+impl<K, V> ConsumersMap<K, V> where K: Hash + Eq {
     pub fn new(inner: HashMap<K, spsc_queue::Consumer<V>>) -> Self {
         Self(inner)
     }
 
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self(HashMap::with_capacity(capacity))
+    }
+
     pub fn iter(&self) -> std::collections::hash_map::Iter<K, spsc_queue::Consumer<V>> {
         self.0.iter()
+    }
+
+    pub fn insert(&mut self, key: K, value: spsc_queue::Consumer<V>) -> Option<spsc_queue::Consumer<V>> {
+        self.0.insert(key, value)
     }
 
     pub fn poll_values(&self) -> Option<(&K, V)> {

@@ -8,7 +8,7 @@ pub struct IndicatorEngine {
     config_rx: spsc_queue::Consumer<BotConfiguration>,
     data_txs: ArrayVec<spsc_queue::Producer<IndicatorEvent>, CONSUMER_LIMIT>,
     indicators_config: Box<[IndicatorConfig]>,
-    market_data_rxs: HashMap<Box<str>, spsc_queue::Consumer<MarketEvent>>,
+    market_data_rxs: ConsumersMap<Box<str>, MarketEvent>,
     status_tx: spsc_queue::Producer<EngineStatus>,
     status_rx: spsc_queue::Consumer<EngineStatus>,
 }
@@ -16,7 +16,7 @@ pub struct IndicatorEngine {
 impl IndicatorEngine {
     pub fn new(
         config_rx: spsc_queue::Consumer<BotConfiguration>,
-        market_data_rxs: HashMap<Box<str>, spsc_queue::Consumer<MarketEvent>>,
+        market_data_rxs: ConsumersMap<Box<str>, MarketEvent>,
     ) -> Self {
         let (status_tx, status_rx) = spsc_queue::make(1);
         Self {

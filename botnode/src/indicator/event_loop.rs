@@ -25,7 +25,7 @@ impl IndicatorState {
 
 /// Indicator engine loop
 pub async fn run_indicator_loop(
-    market_data_rxs: HashMap<Box<str>, spsc_queue::Consumer<MarketEvent>>,
+    market_data_rxs: ConsumersMap<Box<str>, MarketEvent>,
     shutdown: Shutdown,
 ) -> Result<(), EngineError> {
     let _token = shutdown

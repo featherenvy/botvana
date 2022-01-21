@@ -7,7 +7,7 @@ use crate::prelude::*;
 /// Auditing engine
 #[derive(Debug)]
 pub struct AuditEngine {
-    market_data_rxs: HashMap<Box<str>, spsc_queue::Consumer<MarketEvent>>,
+    market_data_rxs: ConsumersMap<Box<str>, MarketEvent>,
     status_tx: spsc_queue::Producer<EngineStatus>,
     status_rx: spsc_queue::Consumer<EngineStatus>,
     metrics: AuditMetrics,
@@ -19,7 +19,7 @@ pub struct AuditMetrics {
 }
 
 impl AuditEngine {
-    pub fn new(market_data_rxs: HashMap<Box<str>, spsc_queue::Consumer<MarketEvent>>) -> Self {
+    pub fn new(market_data_rxs: ConsumersMap<Box<str>, MarketEvent>) -> Self {
         let (status_tx, status_rx) = spsc_queue::make(1);
         let metrics = AuditMetrics::default();
 
@@ -54,7 +54,7 @@ impl Engine for AuditEngine {
 /// Audit engine loop
 pub async fn run_audit_loop(
     status_tx: spsc_queue::Producer<EngineStatus>,
-    market_data_rxs: HashMap<Box<str>, spsc_queue::Consumer<MarketEvent>>,
+    market_data_rxs: ConsumersMap<Box<str>, MarketEvent>,
     audit_metrics: AuditMetrics,
     shutdown: Shutdown,
 ) -> Result<(), EngineError> {

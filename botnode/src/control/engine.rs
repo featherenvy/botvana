@@ -52,10 +52,10 @@ impl ControlEngine {
         //  - control engine
         //  - audit engine
         let mut market_data_rxs = vec![
-            HashMap::new(),
-            HashMap::new(),
-            HashMap::new(),
-            HashMap::new(),
+            ConsumersMap::with_capacity(n_exchanges),
+            ConsumersMap::with_capacity(n_exchanges),
+            ConsumersMap::with_capacity(n_exchanges),
+            ConsumersMap::with_capacity(n_exchanges),
         ];
 
         for (i, exchange) in config.exchanges.iter().enumerate() {
@@ -70,7 +70,7 @@ impl ControlEngine {
             .expect(&format!("Failed to start {} market data engine", exchange));
         }
 
-        self.market_data_rxs = ConsumersMap::new(market_data_rxs.pop().unwrap());
+        self.market_data_rxs = market_data_rxs.pop().unwrap();
 
         let (exchange_request_tx, exchange_request_rx) = spsc_queue::make(100);
 
@@ -124,7 +124,7 @@ impl ControlEngine {
         cpu: usize,
         exchange: &str,
         shutdown: Shutdown,
-        market_data_rxs: &mut Vec<HashMap<Box<str>, spsc_queue::Consumer<MarketEvent>>>,
+        market_data_rxs: &mut Vec<ConsumersMap<Box<str>, MarketEvent>>,
     ) -> Result<glommio::ExecutorJoinHandle<()>, StartEngineError> {
         match exchange {
             "ftx" => {
