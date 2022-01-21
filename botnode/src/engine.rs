@@ -1,30 +1,58 @@
-use std::thread;
-
 use crate::prelude::*;
+use botvana::exchange::ExchangeRef;
 
 /// Botnode engines type
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum EngineType {
     AuditEngine,
     ControlEngine,
-    MarketDataEngine,
+    ExchangeEngine,
+    IndicatorEngine,
+    MarketDataEngine(ExchangeRef),
     TradingEngine,
+}
+
+/// Engine status
+#[derive(Clone, Debug)]
+pub enum EngineStatus {
+    /// The engine is booting
+    Booting,
+    /// The engine is running and operating as expected
+    Running,
+    /// The engine is shutting down
+    ShuttingDown,
+    /// Engine has encountered error and shut down
+    Error,
+}
+
+impl Default for EngineStatus {
+    fn default() -> Self {
+        Self::Booting
+    }
 }
 
 /// Engine trait
 #[async_trait(?Send)]
 pub trait Engine {
-    /// Data that the engine produces
-    type Data: Clone;
-
     /// Returns engine name
     fn name(&self) -> String;
 
+    /// Returns engine health receiver
+    fn status_rx(&self) -> spsc_queue::Consumer<EngineStatus>;
+
     /// Start the engine loop
     async fn start(self, shutdown: Shutdown) -> Result<(), EngineError>;
+}
+
+/// Engine trait
+#[async_trait(?Send)]
+pub trait EngineData {
+    /// Data that the engine produces
+    type Data: Clone + std::fmt::Debug;
 
     /// Returns receiver for the data engine produces
     fn data_rx(&mut self) -> spsc_queue::Consumer<Self::Data> {
-        let (_data_tx, data_rx) = spsc_queue::make::<Self::Data>(100);
+        let (_data_tx, data_rx) = spsc_queue::make::<Self::Data>(1);
         data_rx
     }
 
@@ -35,13 +63,30 @@ pub trait Engine {
 
     /// Pushes value onto all data transmitter
     fn push_value(&self, val: Self::Data) {
-        self.data_txs().iter().for_each(move |config_tx| {
-            let val = val.clone();
-            let mut res = config_tx.try_push(val);
-            while let Some(value) = res {
-                res = Some(value);
-            }
-        });
+        self.data_txs()
+            .iter()
+            .enumerate()
+            .for_each(move |(idx, data_tx)| {
+                if data_tx.consumer_disconnected() {
+                    warn!("Consumer disconnected {:?}", data_tx);
+                }
+
+                let val = val.clone();
+                let mut res = data_tx.try_push(val);
+                let mut fail_cnt = 0;
+
+                while let Some(value) = res {
+                    if fail_cnt > 10 {
+                        panic!(
+                            "Failed to push value onto producer: idx={idx} value={:?}",
+                            value
+                        );
+                    }
+                    fail_cnt += 1;
+
+                    res = Some(value);
+                }
+            });
     }
 }
 
@@ -56,19 +101,12 @@ pub trait Engine {
 ///
 /// #[async_trait(?Send)]
 /// impl Engine for ExampleEngine {
-///     type Data = ();
-///
 ///     fn name(&self) -> String {
 ///         "example-engine".to_string()
 ///     }
 ///
 ///     async fn start(self, shutdown: Shutdown) -> Result<(), EngineError> {
 ///         Ok(())
-///     }
-///
-///     fn data_rx(&mut self) -> spsc_queue::Consumer<Self::Data> {
-///         let (_data_tx, data_rx) = spsc_queue::make::<()>(1024);
-///         data_rx
 ///     }
 /// }
 ///
@@ -78,9 +116,8 @@ pub fn spawn_engine<E: Engine + Send + 'static>(
     cpu: usize,
     engine: E,
     shutdown: Shutdown,
-) -> Result<thread::JoinHandle<()>, StartEngineError> {
-    LocalExecutorBuilder::new()
-        .pin_to_cpu(cpu)
+) -> Result<glommio::ExecutorJoinHandle<()>, StartEngineError> {
+    LocalExecutorBuilder::new(Placement::Fixed(cpu))
         .spin_before_park(std::time::Duration::from_micros(250))
         .name(&engine.name())
         .spawn(move || async move {
@@ -113,10 +150,12 @@ mod tests {
 
     #[async_trait(?Send)]
     impl Engine for TestEngine {
-        type Data = TestData;
-
         fn name(&self) -> String {
             "test-engine".to_string()
+        }
+
+        fn status_rx(&self) -> spsc_queue::Consumer<EngineStatus> {
+            unimplemented!();
         }
 
         async fn start(self, shutdown: Shutdown) -> Result<(), EngineError> {
@@ -125,12 +164,6 @@ mod tests {
                     return Ok(());
                 }
             }
-        }
-
-        fn data_rx(&mut self) -> spsc_queue::Consumer<Self::Data> {
-            let (data_tx, data_rx) = spsc_queue::make(1);
-            self.0.push(data_tx);
-            data_rx
         }
     }
 

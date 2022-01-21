@@ -78,10 +78,12 @@ async fn handle_connection(
             }
             Either::Right((_, msg_fut_continue)) => {
                 let connected_bots = global_state.connected_bots().await;
+                let markets = global_state.markets().await;
                 ws_sender
                     .send(Message::Text(
                         json!({
                             "connected_bots": connected_bots,
+                            "markets": markets
                         })
                         .to_string(),
                     ))

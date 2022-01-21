@@ -3,49 +3,53 @@
 use crate::market_data::{adapter::*, MarketEvent};
 use crate::prelude::*;
 
-pub const MARKET_DATA_QUEUE_LEN: usize = 1024;
+pub const MARKET_DATA_QUEUE_LEN: usize = 512;
 pub const CONSUMER_LIMIT: usize = 16;
-
-pub type MarketDataProducers = ArrayVec<spsc_queue::Producer<MarketEvent>, CONSUMER_LIMIT>;
 
 /// Market Data Engine
 ///
 /// It maintains connection to the exchange and produces raw market data.
-pub struct MarketDataEngine<A: MarketDataAdapter> {
+pub struct MarketDataEngine<A: MarketDataAdapter<TX_CAP>, const TX_CAP: usize> {
     adapter: A,
     config_rx: spsc_queue::Consumer<BotConfiguration>,
-    data_txs: MarketDataProducers,
+    data_txs: crate::channels::ProducersArray<MarketEvent, TX_CAP>,
+    status_tx: spsc_queue::Producer<EngineStatus>,
+    status_rx: spsc_queue::Consumer<EngineStatus>,
 }
 
-impl<A: MarketDataAdapter> MarketDataEngine<A> {
+impl<A: MarketDataAdapter<TX_CAP>, const TX_CAP: usize> MarketDataEngine<A, TX_CAP> {
     pub fn new(config_rx: spsc_queue::Consumer<BotConfiguration>, adapter: A) -> Self {
+        let (status_tx, status_rx) = spsc_queue::make(1);
         Self {
             adapter,
             config_rx,
-            data_txs: ArrayVec::<_, CONSUMER_LIMIT>::new(),
+            data_txs: crate::channels::ProducersArray::<MarketEvent, TX_CAP>::default(),
+            status_tx,
+            status_rx,
         }
     }
 }
 
 #[async_trait(?Send)]
-impl<A: MarketDataAdapter> Engine for MarketDataEngine<A> {
-    type Data = MarketEvent;
-
+impl<A: MarketDataAdapter<TX_CAP>, const TX_CAP: usize> Engine for MarketDataEngine<A, TX_CAP> {
     fn name(&self) -> String {
         format!("market-data-{}", A::NAME)
+    }
+
+    fn status_rx(&self) -> spsc_queue::Consumer<EngineStatus> {
+        self.status_rx.clone()
     }
 
     /// Start the market data engine
     async fn start(mut self, shutdown: Shutdown) -> Result<(), EngineError> {
         info!("Starting market data engine for {}", A::NAME);
 
+        self.status_tx.try_push(EngineStatus::Booting);
+
         // First, fetch available markets using the adapter
         match self.adapter.fetch_markets().await {
             Ok(markets) => {
-                let event = MarketEvent {
-                    r#type: MarketEventType::Markets(markets.into()),
-                    timestamp: Utc::now(),
-                };
+                let event = MarketEvent::markets(markets.into());
                 self.push_value(event);
             }
             Err(e) => {
@@ -63,6 +67,8 @@ impl<A: MarketDataAdapter> Engine for MarketDataEngine<A> {
             .map(|market| market.as_ref())
             .collect();
 
+        self.status_tx.try_push(EngineStatus::Running);
+
         info!("Running loop w/ markets = {:?}", config.markets);
         if let Err(e) = self
             .adapter
@@ -70,19 +76,25 @@ impl<A: MarketDataAdapter> Engine for MarketDataEngine<A> {
             .await
         {
             error!("Error running loop: {}", e);
+            self.status_tx.try_push(EngineStatus::Error);
         }
 
         Ok(())
     }
+}
+
+#[async_trait(?Send)]
+impl<A: MarketDataAdapter<TX_CAP>, const TX_CAP: usize> EngineData for MarketDataEngine<A, TX_CAP> {
+    type Data = MarketEvent;
 
     fn data_txs(&self) -> &[spsc_queue::Producer<Self::Data>] {
-        &self.data_txs
+        &self.data_txs.0
     }
 
     /// Returns cloned market event receiver
     fn data_rx(&mut self) -> spsc_queue::Consumer<Self::Data> {
         let (data_tx, data_rx) = spsc_queue::make(MARKET_DATA_QUEUE_LEN);
-        self.data_txs.push(data_tx);
+        self.data_txs.0.push(data_tx);
         data_rx
     }
 }

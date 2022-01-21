@@ -12,9 +12,9 @@ use metered::{time_source::StdInstant, *};
 use serde_json::json;
 use surf::Url;
 
-use botvana::exchange::ExchangeRef;
 use crate::market_data::{adapter::*, error::*, Market};
 use crate::prelude::*;
+use botvana::exchange::ExchangeRef;
 
 /// FTX market data
 #[derive(Default, Debug)]

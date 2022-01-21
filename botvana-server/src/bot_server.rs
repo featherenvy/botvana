@@ -185,6 +185,9 @@ pub async fn process_bot_message(
                 .await
                 .map_err(|_| BotServerError::WriteError)?;
         }
+        Message::MarketList(markets_vec) => {
+            global_state.update_markets(markets_vec).await;
+        }
         msg => {
             warn!("Unhandled message = {:?} from bot {:?}", msg, conn_bot_id);
         }

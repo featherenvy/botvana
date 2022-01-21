@@ -70,7 +70,7 @@ Control station application written using egui framework.
 In order to work with Botvana you need to have:
 
 -   Linux kernel version >5.13
--   Rust 1.56 or higher
+-   Rust 1.58 or higher
 -   Terraform
 
 ## Getting started

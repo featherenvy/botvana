@@ -3,16 +3,17 @@
 pub(crate) mod rest;
 pub(crate) mod ws;
 
-use botvana::{exchange::ExchangeRef};
 use super::prelude::*;
 use crate::market_data::Market;
 use crate::prelude::*;
+use botvana::exchange::ExchangeRef;
 
 #[derive(Debug)]
 pub struct Binance {
     pub metrics: BinanceMetrics,
     cur_idx: u64,
     api_url: Box<str>,
+    symbol_map: Vec<(String, String)>,
 }
 
 impl Default for Binance {
@@ -21,6 +22,7 @@ impl Default for Binance {
             api_url: Box::from("https://api.binance.com"),
             cur_idx: 0,
             metrics: BinanceMetrics::default(),
+            symbol_map: vec![],
         }
     }
 }
@@ -141,18 +143,29 @@ impl WsMarketDataAdapter for Binance {
                         )))
                     }
                     ws::WsMsg::DepthUpdate(update) => {
-                        let orderbook = markets.get_mut(update.symbol);
-                        if let Some(orderbook) = orderbook {
-                            orderbook.update_with_timestamp(
-                                &update.bids,
-                                &update.asks,
-                                update.event_time,
-                            );
-                            Ok(Some(MarketEvent::orderbook_update(
-                                Box::from(update.symbol),
-                                Box::new(orderbook.clone()),
-                            )))
+                        // Convert symbol coming in from the WS API to "internal"
+                        let symbol = markets
+                            .keys()
+                            .find(|k| k.replace("/", "") == update.symbol)
+                            .cloned();
+                        if let Some(symbol) = symbol {
+                            let orderbook = markets.get_mut(&symbol);
+                            if let Some(orderbook) = orderbook {
+                                orderbook.update_with_timestamp(
+                                    &update.bids,
+                                    &update.asks,
+                                    update.event_time,
+                                );
+                                Ok(Some(MarketEvent::orderbook_update(
+                                    Box::from(update.symbol),
+                                    Box::new(orderbook.clone()),
+                                )))
+                            } else {
+                                warn!("No orderbook snapshot found for {}", update.symbol);
+                                Ok(None)
+                            }
                         } else {
+                            warn!("No symbol mapping found for {}", update.symbol);
                             Ok(None)
                         }
                     }

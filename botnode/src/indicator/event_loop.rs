@@ -74,10 +74,10 @@ fn process_market_event(
                 .as_micros() as f64
                 / 1_000_000.0;
             let delay = now - orderbook.time;
-            let bid = orderbook.bids.price_vec.last().unwrap();
-            let ask = orderbook.asks.price_vec[0];
+            let bid = orderbook.bids.price_vec.last().unwrap_or(&0.0);
+            let ask = orderbook.asks.price_vec.first().unwrap_or(&0.0);
 
-            indicator_state.update_tob(orderbook.time, market_symbol.clone(), *bid, ask);
+            indicator_state.update_tob(orderbook.time, market_symbol.clone(), *bid, *ask);
 
             trace!("{}: {}/{} ({} delay)", market_symbol, bid, ask, delay,)
         }

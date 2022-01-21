@@ -5,7 +5,7 @@ use std::time::SystemTime;
 use serde::{Deserialize, Serialize};
 
 use crate::cfg::BotConfiguration;
-use crate::market::MarketsVec;
+use crate::market::MarketVec;
 
 /// Botvana protocol message
 #[derive(Serialize, Deserialize, Debug)]
@@ -32,7 +32,7 @@ pub enum Message {
     /// Sent in response to ping.
     Pong(u128),
     /// List of markets that the bot has access to
-    MarketList(MarketsVec),
+    MarketList(MarketVec),
 }
 
 impl Message {
@@ -55,7 +55,7 @@ impl Message {
         }
     }
 
-    pub fn market_list(markets: MarketsVec) -> Self {
+    pub fn market_list(markets: MarketVec) -> Self {
         Self::MarketList(markets)
     }
 }
