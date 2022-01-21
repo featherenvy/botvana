@@ -4,8 +4,7 @@ pub(crate) mod rest;
 pub(crate) mod ws;
 
 use super::prelude::*;
-use crate::market_data::Market;
-use crate::prelude::*;
+use crate::{market_data::Market, prelude::*};
 use botvana::exchange::ExchangeRef;
 
 #[derive(Debug)]

@@ -14,7 +14,7 @@ impl<T, const N: usize> Default for ProducersArray<T, N> {
 
 impl<T, const N: usize> ProducersArray<T, N>
 where
-    T: Clone,
+    T: Clone + std::fmt::Debug,
 {
     /// Pushes value onto all data transmitters
     pub(crate) fn push_value(&self, event: T) {
@@ -30,6 +30,7 @@ where
 
             while let Some(value) = res {
                 res = tx.try_push(value);
+                warn!("Retried to push to channel {idx}: {res:?}");
 
                 if fail_cnt > FAIL_LIMIT {
                     if tx.consumer_disconnected() {

@@ -6,8 +6,11 @@
 use async_tungstenite::{async_std::connect_async, tungstenite::Message};
 use glommio::timer::sleep;
 
-use crate::market_data::{error::MarketDataError, Market};
-use crate::{market_data::prelude::*, prelude::*};
+use crate::{
+    market_data::prelude::*,
+    market_data::{error::MarketDataError, Market},
+    prelude::*,
+};
 use botvana::{exchange::ExchangeRef, market::MarketVec};
 
 /// Market data adapter trait

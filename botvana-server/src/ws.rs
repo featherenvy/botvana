@@ -1,14 +1,17 @@
-use std::net::SocketAddr;
-use std::time::Duration;
+use std::{net::SocketAddr, time::Duration};
 
-use async_std::net::{TcpListener, TcpStream};
-use async_std::task;
+use async_std::{
+    net::{TcpListener, TcpStream},
+    task,
+};
 use async_tungstenite::{
     accept_async,
     tungstenite::{Error, Message, Result},
 };
-use futures::future::{select, Either};
-use futures::prelude::*;
+use futures::{
+    future::{select, Either},
+    prelude::*,
+};
 use serde_json::json;
 use tracing::*;
 

@@ -10,10 +10,12 @@ pub mod ftx;
 pub use engine::*;
 
 mod prelude {
-    pub use std::borrow::Borrow;
-    pub use std::cell::RefCell;
-    pub use std::collections::HashMap;
-    pub use std::time::{Duration, SystemTime};
+    pub use std::{
+        borrow::Borrow,
+        cell::RefCell,
+        collections::HashMap,
+        time::{Duration, SystemTime},
+    };
 
     pub use metered::{clear::Clear, time_source::StdInstant, *};
     pub use serde_json::json;

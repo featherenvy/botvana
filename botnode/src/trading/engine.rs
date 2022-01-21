@@ -1,5 +1,7 @@
-use crate::exchange::{ExchangeEvent, ExchangeRequest};
-use crate::prelude::*;
+use crate::{
+    exchange::{ExchangeEvent, ExchangeRequest},
+    prelude::*,
+};
 
 /// Trading engine
 pub struct TradingEngine {

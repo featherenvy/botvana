@@ -3,17 +3,16 @@
 pub(crate) mod rest;
 pub(crate) mod ws;
 
-use std::borrow::Borrow;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::time::Duration;
+use std::{borrow::Borrow, cell::RefCell, collections::HashMap, time::Duration};
 
 use metered::{time_source::StdInstant, *};
 use serde_json::json;
 use surf::Url;
 
-use crate::market_data::{adapter::*, error::*, Market};
-use crate::prelude::*;
+use crate::{
+    market_data::{adapter::*, error::*, Market},
+    prelude::*,
+};
 use botvana::exchange::ExchangeRef;
 
 /// FTX market data

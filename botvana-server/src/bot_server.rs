@@ -2,8 +2,7 @@ use std::{rc::Rc, time::Duration};
 
 use async_codec::Framed;
 use async_std::net::ToSocketAddrs;
-use futures::prelude::*;
-use futures::stream::StreamExt;
+use futures::{prelude::*, stream::StreamExt};
 use glommio::{enclose, net::TcpListener, net::TcpStream, sync::Semaphore, timer::sleep, Task};
 use tracing::{debug, error, info, warn};
 

@@ -4,7 +4,6 @@ use crate::market_data::{adapter::*, MarketEvent};
 use crate::prelude::*;
 
 pub const MARKET_DATA_QUEUE_LEN: usize = 512;
-pub const CONSUMER_LIMIT: usize = 16;
 
 /// Market Data Engine
 ///

@@ -1,11 +1,8 @@
-use std::num::ParseIntError;
-use std::str::FromStr;
-use std::time::SystemTime;
+use std::{num::ParseIntError, str::FromStr, time::SystemTime};
 
 use serde::{Deserialize, Serialize};
 
-use crate::cfg::BotConfiguration;
-use crate::market::MarketVec;
+use crate::{cfg::BotConfiguration, market::MarketVec};
 
 /// Botvana protocol message
 #[derive(Serialize, Deserialize, Debug)]

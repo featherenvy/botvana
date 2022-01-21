@@ -2,8 +2,7 @@ use std::sync::Arc;
 
 use async_std::sync::RwLock;
 
-use crate::market::MarketVec;
-use crate::net::msg::BotId;
+use crate::{market::MarketVec, net::msg::BotId};
 
 // Global state held by botvana-server
 #[derive(Clone, Debug)]
