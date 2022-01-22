@@ -34,9 +34,13 @@ Botvana is split into these components:
 Currently, in the early phase of the project, the supported exchanges are FTX and
 Binance.
 
+### Deployment architecture
+
+![deployment architecture](docs/deployment_architecture.png)
+
 ### botnode architecture
 
-![The botnode architecture](docs/botnode_architecture.png)
+![botnode architecture](docs/botnode_architecture.png)
 
 Botnode uses thread-per-core architecture where each thread is pinned to exactly
 one logical CPU core. Each CPU core runs a different engine with a custom event loop.
