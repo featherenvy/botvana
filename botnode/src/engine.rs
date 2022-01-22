@@ -105,6 +105,10 @@ pub trait EngineData {
 ///         "example-engine".to_string()
 ///     }
 ///
+///     fn status_rx(&self) -> spsc_queue::Consumer<EngineStatus> {
+///         unimplemented!();
+///     }
+///
 ///     async fn start(self, shutdown: Shutdown) -> Result<(), EngineError> {
 ///         Ok(())
 ///     }
@@ -131,6 +135,7 @@ pub fn spawn_engine<E: Engine + Send + 'static>(
         .map_err(StartEngineError::from)
 }
 
+/// Awaits until a value is produced on a given spsc_queue channel
 pub fn await_value<T>(rx: spsc_queue::Consumer<T>) -> T {
     loop {
         if let Some(config) = rx.try_pop() {

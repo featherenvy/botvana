@@ -688,6 +688,7 @@ dependencies = [
  "futures",
  "rust_decimal",
  "serde",
+ "smol",
  "soa_derive",
  "thiserror",
  "tracing",

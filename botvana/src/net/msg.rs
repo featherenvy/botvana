@@ -30,6 +30,10 @@ pub enum Message {
     Pong(u128),
     /// List of markets that the bot has access to
     MarketList(MarketVec),
+    /// A set of metrics
+    Metrics,
+    /// Status report
+    StatusReport,
 }
 
 impl Message {
@@ -38,6 +42,7 @@ impl Message {
         Message::Hello(bot_id, BotMetadata::new(1))
     }
 
+    /// Returns new ping message with current time
     pub fn ping() -> Self {
         match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
             Ok(n) => Message::Ping(n.as_nanos()),
@@ -45,6 +50,7 @@ impl Message {
         }
     }
 
+    /// Returns new ping message with current time
     pub fn pong() -> Self {
         match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
             Ok(n) => Message::Pong(n.as_nanos()),
@@ -52,6 +58,7 @@ impl Message {
         }
     }
 
+    /// Returns new markets list message with given markets
     pub fn market_list(markets: MarketVec) -> Self {
         Self::MarketList(markets)
     }
@@ -63,6 +70,7 @@ pub struct BotId(pub u16);
 
 impl FromStr for BotId {
     type Err = ParseIntError;
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(BotId(s.parse::<u16>()?))
     }

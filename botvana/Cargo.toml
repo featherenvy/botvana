@@ -21,6 +21,7 @@ tracing = "0.1.29"
 async-std = { version = "1.10.0", features = ["attributes"] }
 criterion = "0.3.5"
 futures = "0.3"
+smol = "1.2.5"
 
 [[bench]]
 name = "orderbook_update_benchmark"

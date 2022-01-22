@@ -1,5 +1,5 @@
-use std::hash::Hash;
 use crate::prelude::*;
+use std::hash::Hash;
 
 const FAIL_LIMIT: usize = 100;
 
@@ -49,7 +49,10 @@ where
 #[derive(Debug)]
 pub struct ConsumersMap<K, V>(HashMap<K, spsc_queue::Consumer<V>>);
 
-impl<K, V> ConsumersMap<K, V> where K: Hash + Eq {
+impl<K, V> ConsumersMap<K, V>
+where
+    K: Hash + Eq,
+{
     pub fn new(inner: HashMap<K, spsc_queue::Consumer<V>>) -> Self {
         Self(inner)
     }
@@ -62,7 +65,11 @@ impl<K, V> ConsumersMap<K, V> where K: Hash + Eq {
         self.0.iter()
     }
 
-    pub fn insert(&mut self, key: K, value: spsc_queue::Consumer<V>) -> Option<spsc_queue::Consumer<V>> {
+    pub fn insert(
+        &mut self,
+        key: K,
+        value: spsc_queue::Consumer<V>,
+    ) -> Option<spsc_queue::Consumer<V>> {
         self.0.insert(key, value)
     }
 
