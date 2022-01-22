@@ -99,3 +99,7 @@ In order to work with Botvana you need to have:
     ```sh
     SERVER_ADDR=127.0.0.1:7978 BOT_ID=0 cargo r --bin botnode
     ```
+6.  Run `station-egui`
+    ```sh
+    cargo r --bin station-egui
+    ```
