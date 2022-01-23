@@ -5,6 +5,5 @@
 pub mod cfg;
 pub mod exchange;
 pub mod market;
-pub mod metrics;
 pub mod net;
 pub mod state;

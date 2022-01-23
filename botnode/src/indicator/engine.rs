@@ -44,7 +44,7 @@ impl Engine for IndicatorEngine {
         info!("Starting indicator engine");
 
         let config = await_value(self.config_rx);
-        debug!("config = {:?}", config);
+        debug!("config = {config:?}");
         self.indicators_config = config.indicators;
 
         super::event_loop::run_indicator_loop(self.market_data_rxs, shutdown).await

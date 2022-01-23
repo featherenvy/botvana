@@ -35,19 +35,19 @@ pub(crate) async fn run_control_loop(
 
         if elapsed > control.ping_interval {
             if let Err(e) = framed.send(Message::ping()).await {
-                error!("Failed to send ping message: {:?}", e);
+                error!("Failed to send ping message: {e:?}");
             }
             last_activity = SystemTime::now();
         }
 
         for (engine, status_rx) in control.status_rxs.iter() {
             if status_rx.producer_disconnected() {
-                warn!("Engine {:?} disconnected!", engine);
+                warn!("Engine {engine:?} disconnected!");
             }
 
             let status = status_rx.try_pop();
             if let Some(status) = status {
-                info!("EngineStatus: {:?} = {:?}", engine, status);
+                info!("EngineStatus: {engine:?} = {status:?}");
             }
         }
 
@@ -72,7 +72,7 @@ pub(crate) async fn run_control_loop(
 
         // Check if the stream has yielded a value
         if let Ok(msg) = msg.await {
-            debug!("got msg from botvana-server: {:?}", msg);
+            debug!("got msg from botvana-server: {msg:?}");
         }
     }
 }
@@ -94,7 +94,7 @@ async fn connect_botvana_server(
 
     let msg = Message::hello(control.bot_id.clone());
     if let Err(e) = framed.send(msg).await {
-        error!("Error framing the message: {:?}", e);
+        error!("Error framing the message: {e:?}");
     }
 
     Ok(framed)
@@ -107,7 +107,7 @@ fn process_bot_configuration<E: 'static + std::error::Error>(
 ) -> Result<(), EngineError> {
     match msg {
         Some(Ok(Message::BotConfiguration(bot_config))) => {
-            debug!("received config = {:?}", bot_config);
+            debug!("received config = {bot_config:?}");
 
             if matches!(
                 control.status,
@@ -116,7 +116,7 @@ fn process_bot_configuration<E: 'static + std::error::Error>(
                 control.status = BotnodeStatus::Online;
             }
 
-            debug!("config = {:?}", bot_config);
+            debug!("config = {bot_config:?}");
 
             control.bot_configuration = Some(bot_config.clone());
 

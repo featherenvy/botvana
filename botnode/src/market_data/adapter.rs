@@ -34,7 +34,7 @@ pub trait MarketDataAdapter<const TX_CAP: usize> {
                 .run_exchange_connection_loop(&data_txs, &markets, shutdown.clone())
                 .await
             {
-                error!("Error running exchange connection loop: {}", e);
+                error!("Error running exchange connection loop: {e}");
             }
 
             if shutdown.shutdown_started() {
@@ -42,7 +42,7 @@ pub trait MarketDataAdapter<const TX_CAP: usize> {
             }
 
             let wait = Duration::from_secs(5);
-            warn!("disconnected from the exchange; waiting for {:?}", wait);
+            warn!("disconnected from the exchange; waiting for {wait:?}");
             sleep(wait).await;
         }
     }
@@ -151,7 +151,7 @@ where
                             data_txs.push_value(event);
                         }
                         Ok(None) => {}
-                        Err(e) => warn!("Failed to process websocket message: {}", e),
+                        Err(e) => warn!("Failed to process websocket message: {e}"),
                     },
                     Some(Ok(Message::Ping(_))) => {
                         debug!(message = "ping",);

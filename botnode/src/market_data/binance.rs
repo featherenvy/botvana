@@ -108,9 +108,9 @@ impl WsMarketDataAdapter for Binance {
                 let market = market.to_lowercase().replace("-", "").replace("/", "");
 
                 [
-                    format!("{}@depth@100ms", market),
-                    format!("{}@trade", market),
-                    format!("{}@bookTicker", market),
+                    format!("{market}@depth@100ms"),
+                    format!("{market}@trade"),
+                    format!("{market}@bookTicker"),
                 ]
             })
             .flatten()
@@ -124,13 +124,13 @@ impl WsMarketDataAdapter for Binance {
         msg: &str,
         markets: &mut HashMap<Box<str>, PlainOrderbook<f64>>,
     ) -> Result<Option<MarketEvent>, MarketDataError> {
-        trace!("got ws_msg = {:?}", msg);
+        trace!("got ws_msg = {msg:?}");
 
         let ws_msg = serde_json::from_slice::<ws::WsMsg>(msg.as_bytes());
 
         match ws_msg {
             Err(e) => {
-                error!("Error parsing ws_msg: {}", msg);
+                error!("Error parsing ws_msg: {msg}");
 
                 Err(MarketDataError {
                     source: Box::new(e),
@@ -169,7 +169,7 @@ impl WsMarketDataAdapter for Binance {
                                     Box::new(orderbook.clone()),
                                 )))
                             } else {
-                                warn!("No orderbook snapshot found for {}", update.symbol);
+                                warn!("No orderbook snapshot found for {symbol}");
                                 Ok(None)
                             }
                         } else {

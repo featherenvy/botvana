@@ -45,7 +45,7 @@ pub async fn run_indicator_loop(
             if let Some(event) = market_data_rx.try_pop() {
                 //info!("market_event = {:?}", event);
                 if let Err(e) = process_market_event(event, &mut indicator_state) {
-                    error!("Failed to process market event: {}", e);
+                    error!("Failed to process market event: {e}");
                 }
             }
         }
@@ -64,7 +64,7 @@ fn process_market_event(
         MarketEventType::Trades(market_symbol, trades) => {
             if !trades.is_empty() {
                 let diff = trades[0].received_at.elapsed();
-                trace!("{} core latency = {} us", market_symbol, diff.as_micros());
+                trace!("{market_symbol} core latency = {} us", diff.as_micros());
             }
         }
         MarketEventType::OrderbookUpdate(market_symbol, orderbook) => {
@@ -79,10 +79,10 @@ fn process_market_event(
 
             indicator_state.update_tob(orderbook.time, market_symbol.clone(), *bid, *ask);
 
-            trace!("{}: {}/{} ({} delay)", market_symbol, bid, ask, delay,)
+            trace!("{market_symbol}: {bid}/{ask} ({delay} delay)");
         }
         MarketEventType::MidPriceChange(market_symbol, bid, ask) => {
-            trace!("{} bid/ask: {}/{}", market_symbol, bid, ask);
+            trace!("{market_symbol} {bid}/{ask}");
         }
     }
     Ok(())

@@ -52,14 +52,14 @@ impl<A: MarketDataAdapter<TX_CAP>, const TX_CAP: usize> Engine for MarketDataEng
                 self.push_value(event);
             }
             Err(e) => {
-                error!("Failed to fetch market info: {:?}", e);
+                error!("Failed to fetch market info: {e:?}");
             }
         };
 
         // Await configuration from botvana-server
         debug!("Waiting for configuration");
         let config = await_value(self.config_rx);
-        debug!("Got config = {:?}", config);
+        debug!("Got config = {config:?}");
         let markets: Vec<_> = config
             .markets
             .iter()
@@ -74,7 +74,7 @@ impl<A: MarketDataAdapter<TX_CAP>, const TX_CAP: usize> Engine for MarketDataEng
             .run_loop(self.data_txs, &markets[..], shutdown)
             .await
         {
-            error!("Error running loop: {}", e);
+            error!("Error running loop: {e}");
             self.status_tx.try_push(EngineStatus::Error);
         }
 

@@ -47,11 +47,11 @@ pub fn run_loop(
         }
 
         if let Some(event) = indicator_rx.try_pop() {
-            trace!("indicator = {:?}", event);
+            trace!("indicator = {event:?}");
         }
 
         if let Some(event) = exchange_rx.try_pop() {
-            trace!("exchange = {:?}", event);
+            trace!("exchange = {event:?}");
         }
     }
 }

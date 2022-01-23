@@ -70,7 +70,7 @@ pub async fn run_audit_loop(
             for (_, market_data_rx) in market_data_rxs.iter() {
                 if let Some(event) = market_data_rx.try_pop() {
                     let elapsed = event.timestamp.elapsed().unwrap();
-                    trace!("market_event = {:?}", event);
+                    trace!("market_event = {event:?}");
 
                     if elapsed > std::time::Duration::from_millis(1) {
                         warn!("Late market event!");

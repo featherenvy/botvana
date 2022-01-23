@@ -57,7 +57,7 @@ fn run_event_loop(
     shutdown: Shutdown,
 ) -> Result<(), EngineError> {
     let config = await_value(config_rx);
-    info!("got config = {:?}", config);
+    info!("got config = {config:?}");
 
     loop {
         if shutdown.shutdown_started() {

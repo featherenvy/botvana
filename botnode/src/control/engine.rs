@@ -67,7 +67,7 @@ impl ControlEngine {
                 shutdown.clone(),
                 &mut market_data_rxs,
             )
-            .expect(&format!("Failed to start {} market data engine", exchange));
+            .expect(&format!("Failed to start {exchange} market data engine"));
         }
 
         self.market_data_rxs = market_data_rxs.pop().unwrap();
@@ -160,7 +160,7 @@ impl ControlEngine {
                 spawn_engine(cpu, market_data_engine, shutdown)
             }
             _ => {
-                error!("Unknown exchange {}", exchange);
+                error!("Unknown exchange {exchange}");
                 Err(StartEngineError {
                     source: "asd".into(),
                 })
@@ -187,7 +187,7 @@ impl Engine for ControlEngine {
         glommio::timer::sleep(std::time::Duration::from_secs(1)).await;
 
         while let Err(e) = super::event_loop::run_control_loop(&mut self, shutdown.clone()).await {
-            error!("Control engine error: {:?}", e);
+            error!("Control engine error: {e:?}");
             glommio::timer::sleep(std::time::Duration::from_secs(1)).await;
         }
 
