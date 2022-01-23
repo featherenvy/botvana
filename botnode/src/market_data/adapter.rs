@@ -3,35 +3,38 @@
 //! This module defines market data adapter traits that when implemented allow
 //! the market data engine to operate on any exchange.
 
-use glommio::timer::sleep;
 use async_tungstenite::{async_std::connect_async, tungstenite::Message};
+use glommio::timer::sleep;
 
-use botvana::{exchange::ExchangeRef, market::MarketsVec};
-use crate::market_data::{error::MarketDataError, Market};
-use crate::{market_data::prelude::*, prelude::*};
+use crate::{
+    market_data::prelude::*,
+    market_data::{error::MarketDataError, Market},
+    prelude::*,
+};
+use botvana::{exchange::ExchangeRef, market::MarketVec};
 
 /// Market data adapter trait
 #[async_trait(?Send)]
-pub trait MarketDataAdapter {
+pub trait MarketDataAdapter<const TX_CAP: usize> {
     const NAME: &'static str;
     const EXCHANGE_REF: ExchangeRef;
 
     /// Fetches and returns markets information
-    async fn fetch_markets(&self) -> Result<Box<MarketsVec>, MarketDataError>;
+    async fn fetch_markets(&self) -> Result<Box<MarketVec>, MarketDataError>;
 
     /// Runs the adapter event loop
     async fn run_loop(
         &mut self,
-        data_txs: crate::market_data::MarketDataProducers,
+        data_txs: crate::channels::ProducersArray<MarketEvent, TX_CAP>,
         markets: &[&str],
         shutdown: Shutdown,
     ) -> Result<(), MarketDataError> {
         loop {
             if let Err(e) = self
-                .run_exchange_connection_loop(&data_txs, &markets, &shutdown)
+                .run_exchange_connection_loop(&data_txs, &markets, shutdown.clone())
                 .await
             {
-                error!("Error running exchange connection loop: {}", e);
+                error!("Error running exchange connection loop: {e}");
             }
 
             if shutdown.shutdown_started() {
@@ -39,7 +42,7 @@ pub trait MarketDataAdapter {
             }
 
             let wait = Duration::from_secs(5);
-            warn!("disconnected from the exchange; waiting for {:?}", wait);
+            warn!("disconnected from the exchange; waiting for {wait:?}");
             sleep(wait).await;
         }
     }
@@ -47,9 +50,9 @@ pub trait MarketDataAdapter {
     /// Runs the exchange connection event loop
     async fn run_exchange_connection_loop(
         &mut self,
-        data_txs: &crate::market_data::MarketDataProducers,
+        data_txs: &crate::channels::ProducersArray<MarketEvent, TX_CAP>,
         markets: &[&str],
-        shutdown: &Shutdown,
+        shutdown: Shutdown,
     ) -> Result<Option<MarketEvent>, MarketDataError>;
 }
 
@@ -88,7 +91,7 @@ pub trait RestMarketDataAdapter {
 }
 
 #[async_trait(?Send)]
-impl<T> MarketDataAdapter for T
+impl<T, const TX_CAP: usize> MarketDataAdapter<TX_CAP> for T
 where
     T: WsMarketDataAdapter + RestMarketDataAdapter,
 {
@@ -96,7 +99,7 @@ where
     const EXCHANGE_REF: ExchangeRef = <T as RestMarketDataAdapter>::EXCHANGE_REF;
 
     /// Fetches availables markets on Binance
-    async fn fetch_markets(&self) -> Result<Box<MarketsVec>, MarketDataError> {
+    async fn fetch_markets(&self) -> Result<Box<MarketVec>, MarketDataError> {
         let boxed_markets = <T as RestMarketDataAdapter>::fetch_markets(&self).await?;
         Ok(Box::new(boxed_markets.into()))
     }
@@ -104,9 +107,9 @@ where
     /// Runs the exchange connection event loop
     async fn run_exchange_connection_loop(
         &mut self,
-        data_txs: &crate::market_data::MarketDataProducers,
+        data_txs: &crate::channels::ProducersArray<MarketEvent, TX_CAP>,
         markets: &[&str],
-        shutdown: &Shutdown,
+        shutdown: Shutdown,
     ) -> Result<Option<MarketEvent>, MarketDataError> {
         let _token = shutdown
             .delay_shutdown_token()
@@ -132,6 +135,8 @@ where
         let mut start = std::time::Instant::now();
         let throughput = self.throughput_metrics();
 
+        info!("markets = {:?}", markets);
+
         loop {
             if shutdown.shutdown_started() {
                 info!("Market data adapter shutting down");
@@ -142,14 +147,14 @@ where
             measure!(throughput, {
                 match msg {
                     Some(Ok(Message::Text(msg))) => match self.process_ws_msg(&msg, &mut markets) {
-                        Ok(Some(event)) => data_txs.iter().for_each(|config_tx| {
-                            while config_tx.try_push(event.clone()).is_some() {}
-                        }),
+                        Ok(Some(event)) => {
+                            data_txs.push_value(event);
+                        }
                         Ok(None) => {}
-                        Err(e) => warn!("Failed to process websocket message: {}", e),
+                        Err(e) => warn!("Failed to process websocket message: {e}"),
                     },
                     Some(Ok(Message::Ping(_))) => {
-                        trace!(message = "ping",);
+                        debug!(message = "ping",);
                     }
                     Some(Ok(other)) => {
                         warn!(
@@ -170,6 +175,9 @@ where
 
             if start.elapsed().as_secs() >= 5 {
                 start = std::time::Instant::now();
+                data_txs.0.iter().enumerate().for_each(|(idx, tx)| {
+                    info!("{idx} {tx:?}");
+                });
                 info!(
                     "max throughput over last 5s = {:?}",
                     throughput.0.borrow().hdr_histogram.max()

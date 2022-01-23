@@ -1,5 +1,4 @@
-use std::env::var;
-use std::panic;
+use std::{env::var, panic};
 
 use async_shutdown::Shutdown;
 use futures::prelude::*;
@@ -7,8 +6,7 @@ use glommio::LocalExecutor;
 use signal_hook::consts::signal::*;
 use signal_hook_async_std::Signals;
 use tracing::{debug, error, info};
-use tracing_subscriber::prelude::*;
-use tracing_subscriber::{fmt, EnvFilter};
+use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 use botnode::{control::engine::*, engine::*};
 use botvana::net::msg::BotId;

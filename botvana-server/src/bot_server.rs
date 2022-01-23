@@ -2,8 +2,7 @@ use std::{rc::Rc, time::Duration};
 
 use async_codec::Framed;
 use async_std::net::ToSocketAddrs;
-use futures::prelude::*;
-use futures::stream::StreamExt;
+use futures::{prelude::*, stream::StreamExt};
 use glommio::{enclose, net::TcpListener, net::TcpStream, sync::Semaphore, timer::sleep, Task};
 use tracing::{debug, error, info, warn};
 
@@ -184,6 +183,9 @@ pub async fn process_bot_message(
                 .send(Message::pong())
                 .await
                 .map_err(|_| BotServerError::WriteError)?;
+        }
+        Message::MarketList(markets_vec) => {
+            global_state.update_markets(markets_vec).await;
         }
         msg => {
             warn!("Unhandled message = {:?} from bot {:?}", msg, conn_bot_id);

@@ -1,36 +1,45 @@
-use crate::exchange::{ExchangeEvent, ExchangeRequest};
-use crate::prelude::*;
+use crate::{
+    exchange::{ExchangeEvent, ExchangeRequest},
+    prelude::*,
+};
 
 /// Trading engine
 pub struct TradingEngine {
-    market_data_rxs: HashMap<Box<str>, spsc_queue::Consumer<MarketEvent>>,
+    market_data_rxs: ConsumersMap<Box<str>, MarketEvent>,
     indicator_rx: spsc_queue::Consumer<IndicatorEvent>,
     exchange_tx: spsc_queue::Producer<ExchangeRequest>,
     exchange_rx: spsc_queue::Consumer<ExchangeEvent>,
+    status_tx: spsc_queue::Producer<EngineStatus>,
+    status_rx: spsc_queue::Consumer<EngineStatus>,
 }
 
 impl TradingEngine {
     pub fn new(
-        market_data_rxs: HashMap<Box<str>, spsc_queue::Consumer<MarketEvent>>,
+        market_data_rxs: ConsumersMap<Box<str>, MarketEvent>,
         indicator_rx: spsc_queue::Consumer<IndicatorEvent>,
         exchange_tx: spsc_queue::Producer<ExchangeRequest>,
         exchange_rx: spsc_queue::Consumer<ExchangeEvent>,
     ) -> Self {
+        let (status_tx, status_rx) = spsc_queue::make(1);
         Self {
             market_data_rxs,
             indicator_rx,
             exchange_tx,
             exchange_rx,
+            status_tx,
+            status_rx,
         }
     }
 }
 
 #[async_trait(?Send)]
 impl Engine for TradingEngine {
-    type Data = ();
-
     fn name(&self) -> String {
         "trading-engine".to_string()
+    }
+
+    fn status_rx(&self) -> spsc_queue::Consumer<EngineStatus> {
+        self.status_rx.clone()
     }
 
     /// Starts the trading engine
@@ -44,11 +53,5 @@ impl Engine for TradingEngine {
             self.exchange_rx,
             shutdown,
         )
-    }
-
-    /// Returns dummy data receiver
-    fn data_rx(&mut self) -> spsc_queue::Consumer<Self::Data> {
-        let (_data_tx, data_rx) = spsc_queue::make::<()>(1024);
-        data_rx
     }
 }

@@ -4,9 +4,9 @@
 //! the market data engine to operate on any exchange.
 
 use super::error::ExchangeError;
-use crate::exchange::order_request::OrderRequest;
-use crate::exchange::order_response::OrderResponse;
-use crate::prelude::*;
+use crate::{
+    exchange::order_request::OrderRequest, exchange::order_response::OrderResponse, prelude::*,
+};
 
 /// Market data adapter trait
 #[async_trait(?Send)]

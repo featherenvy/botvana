@@ -2,6 +2,7 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use soa_derive::StructOfArray;
 
 use crate::exchange::ExchangeRef;
 
@@ -9,7 +10,8 @@ pub mod orderbook;
 pub mod trade;
 
 /// Single market information
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, StructOfArray)]
+#[soa_derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Market {
     pub exchange: ExchangeRef,
     pub name: String,
@@ -19,63 +21,44 @@ pub struct Market {
     pub r#type: MarketType,
 }
 
+impl From<MarketRef<'_>> for Market {
+    fn from(market_ref: MarketRef) -> Self {
+        Self {
+            exchange: market_ref.exchange.clone(),
+            name: market_ref.name.clone(),
+            native_symbol: market_ref.native_symbol.clone(),
+            size_increment: *market_ref.size_increment,
+            price_increment: *market_ref.price_increment,
+            r#type: market_ref.r#type.clone(),
+        }
+    }
+}
+
 /// Market types enum
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum MarketType {
     Spot(SpotMarket),
     Futures,
 }
 
 /// Spot market information
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SpotMarket {
     pub base: String,
     pub quote: String,
 }
 
 /// Futures market
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct FuturesMarket {
     pub expires_at: Option<DateTime<Utc>>,
 }
 
-/// List of markets stored in columnar format
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct MarketsVec {
-    pub exchange: Vec<ExchangeRef>,
-    pub symbol: Vec<String>,
-    pub price_increment: Vec<f64>,
-    pub size_increment: Vec<f64>,
-    pub status: Vec<MarketStatus>,
-}
-
-impl MarketsVec {
-    /// Creates new, empty markets list
-    pub fn with_capacity(capacity: usize) -> Self {
-        Self {
-            exchange: Vec::with_capacity(capacity),
-            symbol: Vec::with_capacity(capacity),
-            price_increment: Vec::with_capacity(capacity),
-            size_increment: Vec::with_capacity(capacity),
-            status: Vec::with_capacity(capacity),
-        }
-    }
-
-    /// Returns number of markets
-    pub fn len(&self) -> usize {
-        self.symbol.len()
-    }
-}
-
-impl From<Box<[Market]>> for MarketsVec {
+impl From<Box<[Market]>> for MarketVec {
     fn from(markets: Box<[Market]>) -> Self {
         let mut vec = Self::with_capacity(markets.len());
         for market in markets.iter() {
-            vec.exchange.push(market.exchange);
-            vec.symbol.push(market.name.clone());
-            vec.price_increment.push(market.price_increment);
-            vec.size_increment.push(market.size_increment);
-            vec.status.push(MarketStatus::Open);
+            vec.push(market.clone());
         }
         vec
     }
@@ -98,6 +81,6 @@ mod tests {
 
     #[test]
     fn test_market_vec() {
-        let _ = MarketsVec::with_capacity(1024);
+        let _ = MarketVec::with_capacity(1024);
     }
 }

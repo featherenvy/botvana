@@ -1,21 +1,26 @@
-use std::net::SocketAddr;
-use std::time::Duration;
+use std::{net::SocketAddr, time::Duration};
 
-use async_std::net::{TcpListener, TcpStream};
-use async_std::task;
+use async_std::{
+    net::{TcpListener, TcpStream},
+    task,
+};
 use async_tungstenite::{
     accept_async,
     tungstenite::{Error, Message, Result},
 };
-use futures::future::{select, Either};
-use futures::prelude::*;
+use futures::{
+    future::{select, Either},
+    prelude::*,
+};
 use serde_json::json;
 use tracing::*;
 
 use crate::config;
 use botvana::state;
 
-// Run TCP listener loop and spawn new task for each incoming connection.
+const SNAPSHOT_TICK_INTERVAL_MS: u64 = 1000;
+
+/// Runs TCP listener loop and spawn new task for each incoming connection.
 pub async fn run_listener(
     ws_config: config::WebsocketServerConfig,
     global_state: state::GlobalState,
@@ -35,7 +40,7 @@ pub async fn run_listener(
     }
 }
 
-// Accept a connection
+/// Accept a connection
 async fn accept_connection(peer: SocketAddr, stream: TcpStream, global_state: state::GlobalState) {
     if let Err(e) = handle_connection(peer, stream, global_state).await {
         match e {
@@ -45,20 +50,21 @@ async fn accept_connection(peer: SocketAddr, stream: TcpStream, global_state: st
     }
 }
 
+/// Handles connection and runs the connection loop
 async fn handle_connection(
     peer: SocketAddr,
     stream: TcpStream,
     global_state: state::GlobalState,
 ) -> Result<()> {
     let ws_stream = accept_async(stream).await.expect("Failed to accept");
-    info!("New WebSocket connection: {}", peer);
     let (mut ws_sender, mut ws_receiver) = ws_stream.split();
-    let mut interval = async_std::stream::interval(Duration::from_millis(1000));
-
-    // Echo incoming WebSocket messages and send a message periodically every second.
-
+    let mut interval =
+        async_std::stream::interval(Duration::from_millis(SNAPSHOT_TICK_INTERVAL_MS));
     let mut msg_fut = ws_receiver.next();
     let mut tick_fut = interval.next();
+
+    info!("New WebSocket connection from: {}", peer);
+
     loop {
         match select(msg_fut, tick_fut).await {
             Either::Left((msg, tick_fut_continue)) => {
@@ -78,10 +84,12 @@ async fn handle_connection(
             }
             Either::Right((_, msg_fut_continue)) => {
                 let connected_bots = global_state.connected_bots().await;
+                let markets = global_state.markets().await;
                 ws_sender
                     .send(Message::Text(
                         json!({
                             "connected_bots": connected_bots,
+                            "markets": markets
                         })
                         .to_string(),
                     ))

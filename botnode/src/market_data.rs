@@ -10,10 +10,12 @@ pub mod ftx;
 pub use engine::*;
 
 mod prelude {
-    pub use std::borrow::Borrow;
-    pub use std::cell::RefCell;
-    pub use std::collections::HashMap;
-    pub use std::time::Duration;
+    pub use std::{
+        borrow::Borrow,
+        cell::RefCell,
+        collections::HashMap,
+        time::{Duration, SystemTime},
+    };
 
     pub use metered::{clear::Clear, time_source::StdInstant, *};
     pub use serde_json::json;
@@ -22,21 +24,19 @@ mod prelude {
     pub use crate::market_data::{adapter::*, error::*};
 }
 
-use chrono::{DateTime, Utc};
-
-use botvana::market::{orderbook::PlainOrderbook, trade::Trade, Market, MarketsVec};
+use botvana::market::{orderbook::PlainOrderbook, trade::Trade, Market, MarketVec};
 
 /// Market event enum produced by market data engine
 #[derive(Clone, Debug)]
 pub struct MarketEvent {
     pub r#type: MarketEventType,
-    timestamp: DateTime<Utc>,
+    pub timestamp: std::time::SystemTime,
 }
 
 #[derive(Clone, Debug)]
 pub enum MarketEventType {
     /// Markets update
-    Markets(Box<MarketsVec>),
+    Markets(Box<MarketVec>),
     /// Trades happened
     Trades(Box<str>, Box<[Trade]>),
     /// Orderbook updated
@@ -50,7 +50,7 @@ impl MarketEvent {
     fn new(r#type: MarketEventType) -> Self {
         Self {
             r#type,
-            timestamp: Utc::now(),
+            timestamp: std::time::SystemTime::now(),
         }
     }
 
@@ -67,5 +67,10 @@ impl MarketEvent {
     /// Creates new `MarketEvent::OrderbookUpdate` variant
     fn orderbook_update(market: Box<str>, orderbook: Box<PlainOrderbook<f64>>) -> Self {
         Self::new(MarketEventType::OrderbookUpdate(market, orderbook))
+    }
+
+    /// Creates new `MarketEvent::Markets` variant
+    fn markets(market_vec: Box<MarketVec>) -> Self {
+        Self::new(MarketEventType::Markets(market_vec))
     }
 }

@@ -1,4 +1,5 @@
 pub mod audit;
+pub mod channels;
 pub mod control;
 pub mod engine;
 pub mod error;
@@ -37,6 +38,7 @@ pub mod prelude {
         },
     };
 
+    pub use crate::channels::*;
     pub use crate::engine::*;
     pub use crate::error::{EngineError, StartEngineError};
     pub use crate::indicator::IndicatorEvent;

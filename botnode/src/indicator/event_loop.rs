@@ -25,7 +25,7 @@ impl IndicatorState {
 
 /// Indicator engine loop
 pub async fn run_indicator_loop(
-    market_data_rxs: HashMap<Box<str>, spsc_queue::Consumer<MarketEvent>>,
+    market_data_rxs: ConsumersMap<Box<str>, MarketEvent>,
     shutdown: Shutdown,
 ) -> Result<(), EngineError> {
     let _token = shutdown
@@ -45,7 +45,7 @@ pub async fn run_indicator_loop(
             if let Some(event) = market_data_rx.try_pop() {
                 //info!("market_event = {:?}", event);
                 if let Err(e) = process_market_event(event, &mut indicator_state) {
-                    error!("Failed to process market event: {}", e);
+                    error!("Failed to process market event: {e}");
                 }
             }
         }
@@ -64,7 +64,7 @@ fn process_market_event(
         MarketEventType::Trades(market_symbol, trades) => {
             if !trades.is_empty() {
                 let diff = trades[0].received_at.elapsed();
-                trace!("{} core latency = {} us", market_symbol, diff.as_micros());
+                trace!("{market_symbol} core latency = {} us", diff.as_micros());
             }
         }
         MarketEventType::OrderbookUpdate(market_symbol, orderbook) => {
@@ -74,15 +74,15 @@ fn process_market_event(
                 .as_micros() as f64
                 / 1_000_000.0;
             let delay = now - orderbook.time;
-            let bid = orderbook.bids.price_vec.last().unwrap();
-            let ask = orderbook.asks.price_vec[0];
+            let bid = orderbook.bids.price_vec.last().unwrap_or(&0.0);
+            let ask = orderbook.asks.price_vec.first().unwrap_or(&0.0);
 
-            indicator_state.update_tob(orderbook.time, market_symbol.clone(), *bid, ask);
+            indicator_state.update_tob(orderbook.time, market_symbol.clone(), *bid, *ask);
 
-            trace!("{}: {}/{} ({} delay)", market_symbol, bid, ask, delay,)
+            trace!("{market_symbol}: {bid}/{ask} ({delay} delay)");
         }
         MarketEventType::MidPriceChange(market_symbol, bid, ask) => {
-            trace!("{} bid/ask: {}/{}", market_symbol, bid, ask);
+            trace!("{market_symbol} {bid}/{ask}");
         }
     }
     Ok(())

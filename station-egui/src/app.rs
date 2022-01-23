@@ -6,11 +6,12 @@ use tracing::{debug, info};
 use tungstenite::{connect, Message};
 use url::Url;
 
-use botvana::market::orderbook::PlainOrderbook;
+use botvana::market::{orderbook::PlainOrderbook, MarketVec};
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 pub struct StationApp {
     bots: Vec<u16>,
+    markets: MarketVec,
     _latencies: Vec<u64>,
     _orderbooks: Vec<PlainOrderbook<f64>>,
 
@@ -24,6 +25,7 @@ impl Default for StationApp {
 
         Self {
             bots: vec![],
+            markets: MarketVec::new(),
             _latencies: vec![],
             _orderbooks: vec![],
             ws_rx,
@@ -52,23 +54,18 @@ impl epi::App for StationApp {
         let ws_tx = self.ws_tx.clone();
 
         // Spawn thread to run the websocket connection loop on
-        spawn(move || {
-            // socket
-            //     .write_message(Message::Text("Hello WebSocket".into()))
-            //     .unwrap();
-            loop {
-                let msg = socket.read_message().expect("Error reading message");
+        spawn(move || loop {
+            let msg = socket.read_message().expect("Error reading message");
 
-                match msg {
-                    Message::Text(msg) => {
-                        debug!("Received: {}", msg);
-                        let msg: WebsocketMessage = serde_json::from_str(&msg)
-                            .expect("failed to deserialize websocket message as json");
-                        ws_tx.send(msg).expect("failed to send websocket message");
-                    }
-                    _ => {
-                        info!("Received unknown {:?}", msg);
-                    }
+            match msg {
+                Message::Text(msg) => {
+                    debug!("Received: {}", msg);
+                    let msg: WebsocketMessage = serde_json::from_str(&msg)
+                        .expect("failed to deserialize websocket message as json");
+                    ws_tx.send(msg).expect("failed to send websocket message");
+                }
+                _ => {
+                    info!("Received unknown {:?}", msg);
                 }
             }
         });
@@ -77,15 +74,12 @@ impl epi::App for StationApp {
     /// Called each time the UI needs repainting, which may be many times per second.
     /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
     fn update(&mut self, ctx: &egui::CtxRef, _frame: &epi::Frame) {
-        // Examples of how to create different panels and windows.
-        // Pick whichever suits you.
-        // Tip: a good default choice is to just keep the `CentralPanel`.
-        // For inspiration and more examples, go to https://emilk.github.io/egui
-        //
-
         let msg = self.ws_rx.try_recv();
         match msg {
-            Ok(WebsocketMessage::ConnectedBots(bots)) => self.bots = bots,
+            Ok(msg) => {
+                self.bots = msg.connected_bots;
+                self.markets = msg.markets;
+            }
             _ => {}
         }
 
@@ -105,6 +99,8 @@ impl epi::App for StationApp {
                 }
             });
 
+            egui::warn_if_debug_build(ui);
+
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = 1.0;
@@ -115,18 +111,24 @@ impl epi::App for StationApp {
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("eframe template");
-            ui.add(egui::github_link_file!(
-                "https://github.com/emilk/eframe_template/blob/master/",
-                "Source code."
-            ));
-            egui::warn_if_debug_build(ui);
+            ui.heading("Markets");
+
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                egui::Grid::new("markets-overview").show(ui, |ui| {
+                    for market in self.markets.iter() {
+                        ui.label(market.exchange.to_string());
+                        ui.label(market.name);
+                        ui.end_row();
+                    }
+                });
+            });
         });
     }
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "snake_case")]
-enum WebsocketMessage {
-    ConnectedBots(Vec<u16>),
+struct WebsocketMessage {
+    connected_bots: Vec<u16>,
+    markets: MarketVec,
 }

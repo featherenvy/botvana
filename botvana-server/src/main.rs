@@ -7,8 +7,7 @@ use futures::prelude::*;
 use glommio::{prelude::*, CpuSet};
 use signal_hook::consts::signal::*;
 use signal_hook_async_std::Signals;
-use tide::prelude::*;
-use tide::Request;
+use tide::{prelude::*, Request};
 use tracing::{debug, error, info};
 use tracing_subscriber::EnvFilter;
 
