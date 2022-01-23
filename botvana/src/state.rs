@@ -97,14 +97,10 @@ mod tests {
         let state = GlobalState::new();
 
         smol::block_on(async {
-            let mut bots = state
-                .connected_bots
-                .write()
-                .await;
+            let mut bots = state.connected_bots.write().await;
             bots.push(BotId(0));
             bots.push(BotId(1));
             bots.push(BotId(2));
-
         });
 
         assert_eq!(smol::block_on(state.connected_bots.read()).len(), 3);
@@ -127,10 +123,7 @@ mod tests {
         let state = GlobalState::new();
 
         smol::block_on(async {
-            let mut bots = state
-                .connected_bots
-                .write()
-                .await;
+            let mut bots = state.connected_bots.write().await;
             bots.push(BotId(0));
             bots.push(BotId(1));
             bots.push(BotId(2));
@@ -155,7 +148,7 @@ mod tests {
             r#type: MarketType::Spot(SpotMarket {
                 base: "BTC".to_string(),
                 quote: "USD".to_string(),
-            })
+            }),
         });
 
         smol::block_on(state.update_markets(markets.clone()));
@@ -179,7 +172,7 @@ mod tests {
             r#type: MarketType::Spot(SpotMarket {
                 base: "BTC".to_string(),
                 quote: "USD".to_string(),
-            })
+            }),
         });
 
         smol::block_on(state.update_markets(markets.clone()));

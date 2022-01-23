@@ -39,8 +39,8 @@ impl RestMarketDataAdapter for Ftx {
             .try_into()
             .map_err(MarketDataError::with_source)?;
 
-        let mut res = client.get("/api/markets").await.unwrap();
-        let body = res.body_string().await.unwrap();
+        let mut res = client.get("/api/markets").await.map_err(MarketDataError::surf_error)?;
+        let body = res.body_string().await.map_err(MarketDataError::surf_error)?;
 
         let root = serde_json::from_slice::<rest::ResponseRoot>(body.as_bytes())
             .map_err(MarketDataError::with_source)?;

@@ -1,17 +1,12 @@
-use crate::prelude::*;
 use std::hash::Hash;
+
+use crate::prelude::*;
 
 const FAIL_LIMIT: usize = 100;
 
 /// Array of producers for inter-engine channel
 #[derive(Debug)]
 pub struct ProducersArray<T, const N: usize>(pub(super) ArrayVec<spsc_queue::Producer<T>, N>);
-
-impl<T, const N: usize> Default for ProducersArray<T, N> {
-    fn default() -> Self {
-        Self(ArrayVec::<_, N>::new())
-    }
-}
 
 impl<T, const N: usize> ProducersArray<T, N>
 where
@@ -42,6 +37,12 @@ where
                 fail_cnt += 1;
             }
         });
+    }
+}
+
+impl<T, const N: usize> Default for ProducersArray<T, N> {
+    fn default() -> Self {
+        Self(ArrayVec::<_, N>::new())
     }
 }
 
@@ -87,5 +88,22 @@ where
 impl<K, V> Default for ConsumersMap<K, V> {
     fn default() -> Self {
         Self(HashMap::new())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_producers_array_default() {
+        let producers = ProducersArray::<(), 1>::default();
+        assert_eq!(producers.0.len(), 0);
+    }
+
+    #[test]
+    fn test_consumers_map() {
+        let consumers = ConsumersMap::<(), ()>::default();
+        assert_eq!(consumers.0.len(), 0);
     }
 }

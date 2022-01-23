@@ -39,8 +39,14 @@ impl RestMarketDataAdapter for Binance {
             .try_into()
             .map_err(MarketDataError::with_source)?;
 
-        let mut res = client.get(format!("/api/v3/exchangeInfo")).await.unwrap();
-        let body = res.body_string().await.unwrap();
+        let mut res = client
+            .get(format!("/api/v3/exchangeInfo"))
+            .await
+            .map_err(MarketDataError::surf_error)?;
+        let body = res
+            .body_string()
+            .await
+            .map_err(MarketDataError::surf_error)?;
 
         let info = serde_json::from_slice::<rest::ExchangeInfo>(body.as_bytes())
             .map_err(MarketDataError::with_source)?;
@@ -68,8 +74,11 @@ impl RestMarketDataAdapter for Binance {
         let mut res = client
             .get(format!("/api/v3/depth?symbol={}", symbol))
             .await
-            .unwrap();
-        let body = res.body_string().await.unwrap();
+            .map_err(MarketDataError::surf_error)?;
+        let body = res
+            .body_string()
+            .await
+            .map_err(MarketDataError::surf_error)?;
 
         let snapshot = serde_json::from_slice::<rest::OrderbookSnapshot>(body.as_bytes())
             .map_err(MarketDataError::with_source)?;
