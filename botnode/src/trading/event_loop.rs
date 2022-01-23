@@ -23,26 +23,11 @@ pub fn run_loop(
                 let elapsed = event.timestamp.elapsed().unwrap();
 
                 if elapsed > Duration::from_millis(STALE_MARKET_EVENT_MS) {
-                    warn!("Received stale market data");
+                    warn!("Received stale market data: {elapsed:?}");
+                    continue;
                 }
 
-                match event.r#type {
-                    MarketEventType::OrderbookUpdate(market, orderbook) => {
-                        let bid = orderbook.bids.price_vec.last().unwrap_or(&0.0).clone();
-                        let ask = orderbook.asks.price_vec.first().unwrap_or(&0.0).clone();
-                        let key = format!("{}-{}", exchange, market);
-                        let old_price = prices.get_mut(&key);
-
-                        if let Some((old_bid, old_ask)) = old_price {
-                            if *old_bid != bid || *old_ask != ask {
-                                trace!("{exchange} {market}: {bid}/{ask} (elapsed={elapsed:?})");
-                            }
-                        }
-
-                        prices.insert(key.clone(), (bid, ask));
-                    }
-                    _ => {}
-                }
+                process_market_event(exchange, event, elapsed, &mut prices)?
             }
         }
 
@@ -54,4 +39,42 @@ pub fn run_loop(
             trace!("exchange = {event:?}");
         }
     }
+}
+
+#[inline]
+fn process_market_event(
+    exchange: &str,
+    event: MarketEvent,
+    elapsed: Duration,
+    prices: &mut HashMap<String, (f64, f64)>,
+) -> Result<(), EngineError> {
+    match event.r#type {
+        MarketEventType::OrderbookUpdate(market, orderbook) => {
+            let bid = orderbook.bids.price_vec.last();
+            let ask = orderbook.asks.price_vec.first();
+
+            match (bid, ask) {
+                (Some(bid), Some(ask)) => {
+                    let key = format!("{exchange}-{market}");
+                    let old_price = prices.get_mut(&key);
+                    let bid = bid.clone();
+                    let ask = ask.clone();
+
+                    if let Some((old_bid, old_ask)) = old_price {
+                        if *old_bid != bid || *old_ask != ask {
+                            trace!("{exchange} {market}: {bid}/{ask} (elapsed={elapsed:?})");
+                        }
+                    }
+
+                    prices.insert(key.clone(), (bid, ask));
+                }
+                _ => {
+                    warn!("Missing bid or ask: {bid:?}/{ask:?}");
+                }
+            }
+        }
+        _ => {}
+    }
+
+    Ok(())
 }

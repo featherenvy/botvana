@@ -59,7 +59,7 @@ impl ControlEngine {
         ];
 
         for (i, exchange) in config.exchanges.iter().enumerate() {
-            debug!("starting exchange {:?}", exchange);
+            debug!("starting exchange {exchange:?}");
 
             self.spawn_market_engine(
                 i + 1,
@@ -162,7 +162,7 @@ impl ControlEngine {
             _ => {
                 error!("Unknown exchange {exchange}");
                 Err(StartEngineError {
-                    source: "asd".into(),
+                    source: "Unknown exchange".into(),
                 })
             }
         }

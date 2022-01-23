@@ -136,58 +136,60 @@ impl WsMarketDataAdapter for Binance {
                     source: Box::new(e),
                 })
             }
-            Ok(ws_msg) => {
-                let data = ws_msg;
-                match data {
-                    ws::WsMsg::Trade(trade) => {
-                        use chrono::TimeZone;
-                        let dt = Utc.timestamp(trade.trade_time as i64, 0);
-                        let symbol = trade.symbol;
-                        let trade = botvana::market::trade::Trade::new(trade.price, trade.size, dt);
+            Ok(ws_msg) => Ok(process_data_ws_message(ws_msg, markets)?),
+        }
+    }
+}
 
-                        Ok(Some(MarketEvent::trades(
-                            Box::from(symbol),
-                            Box::new([trade]),
-                        )))
-                    }
-                    ws::WsMsg::DepthUpdate(update) => {
-                        // Convert symbol coming in from the WS API to "internal"
-                        let symbol = markets
-                            .keys()
-                            .find(|k| k.replace("/", "") == update.symbol)
-                            .cloned();
-                        if let Some(symbol) = symbol {
-                            let orderbook = markets.get_mut(&symbol);
-                            if let Some(orderbook) = orderbook {
-                                orderbook.update_with_timestamp(
-                                    &update.bids,
-                                    &update.asks,
-                                    update.event_time,
-                                );
-                                Ok(Some(MarketEvent::orderbook_update(
-                                    Box::from(update.symbol),
-                                    Box::new(orderbook.clone()),
-                                )))
-                            } else {
-                                warn!("No orderbook snapshot found for {symbol}");
-                                Ok(None)
-                            }
-                        } else {
-                            warn!("No symbol mapping found for {}", update.symbol);
-                            Ok(None)
-                        }
-                    }
-                    ws::WsMsg::OrderbookTicker(book_ticker) => {
-                        return Ok(Some(MarketEvent::mid_price_change(
-                            Box::from(book_ticker.symbol),
-                            book_ticker.bid_price,
-                            book_ticker.ask_price,
-                        )))
-                    }
-                    ws::WsMsg::Response(_response) => Ok(None),
+#[inline]
+fn process_data_ws_message(
+    ws_msg: ws::WsMsg,
+    markets: &mut HashMap<Box<str>, PlainOrderbook<f64>>,
+) -> Result<Option<MarketEvent>, MarketDataError> {
+    let data = ws_msg;
+    match data {
+        ws::WsMsg::Trade(trade) => {
+            use chrono::TimeZone;
+            let dt = Utc.timestamp(trade.trade_time as i64, 0);
+            let symbol = trade.symbol;
+            let trade = botvana::market::trade::Trade::new(trade.price, trade.size, dt);
+
+            Ok(Some(MarketEvent::trades(
+                Box::from(symbol),
+                Box::new([trade]),
+            )))
+        }
+        ws::WsMsg::DepthUpdate(update) => {
+            // Convert symbol coming in from the WS API to "internal"
+            let symbol = markets
+                .keys()
+                .find(|k| k.replace("/", "") == update.symbol)
+                .cloned();
+            if let Some(symbol) = symbol {
+                let orderbook = markets.get_mut(&symbol);
+                if let Some(orderbook) = orderbook {
+                    orderbook.update_with_timestamp(&update.bids, &update.asks, update.event_time);
+                    Ok(Some(MarketEvent::orderbook_update(
+                        Box::from(update.symbol),
+                        Box::new(orderbook.clone()),
+                    )))
+                } else {
+                    warn!("No orderbook snapshot found for {symbol}");
+                    Ok(None)
                 }
+            } else {
+                warn!("No symbol mapping found for {}", update.symbol);
+                Ok(None)
             }
         }
+        ws::WsMsg::OrderbookTicker(book_ticker) => {
+            return Ok(Some(MarketEvent::mid_price_change(
+                Box::from(book_ticker.symbol),
+                book_ticker.bid_price,
+                book_ticker.ask_price,
+            )))
+        }
+        ws::WsMsg::Response(_response) => Ok(None),
     }
 }
 

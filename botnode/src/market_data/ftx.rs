@@ -114,6 +114,7 @@ impl WsMarketDataAdapter for Ftx {
     }
 }
 
+#[inline]
 fn process_market_ws_message(
     mut ws_msg: ws::WsMsg,
     markets: &mut HashMap<Box<str>, PlainOrderbook<f64>>,
