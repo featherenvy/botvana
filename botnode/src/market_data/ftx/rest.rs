@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use serde::Deserialize;
 
-use botvana::exchange::ExchangeRef;
+use botvana::exchange::ExchangeId;
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -69,7 +69,7 @@ impl<'a> TryFrom<&'a MarketInfo<'a>> for botvana::market::Market {
         };
 
         Ok(Self {
-            exchange: ExchangeRef::Ftx,
+            exchange: ExchangeId::Ftx,
             name: market.name.to_string(),
             native_symbol: market.name.to_string(),
             size_increment: market.size_increment,

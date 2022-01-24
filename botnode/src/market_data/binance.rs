@@ -5,7 +5,7 @@ pub(crate) mod ws;
 
 use super::prelude::*;
 use crate::prelude::*;
-use botvana::exchange::ExchangeRef;
+use botvana::exchange::ExchangeId;
 
 #[derive(Debug)]
 pub struct Binance {
@@ -27,7 +27,7 @@ impl Default for Binance {
 #[async_trait(?Send)]
 impl RestMarketDataAdapter for Binance {
     const NAME: &'static str = "binance-rest";
-    const EXCHANGE_REF: ExchangeRef = ExchangeRef::BinanceSpot;
+    const EXCHANGE_REF: ExchangeId = ExchangeId::BinanceSpot;
 
     /// Fetches availables markets on Binance
     async fn fetch_markets(&self) -> Result<Box<[Market]>, MarketDataError> {

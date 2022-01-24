@@ -140,7 +140,7 @@ mod tests {
 
         let mut markets = MarketVec::new();
         markets.push(Market {
-            exchange: ExchangeRef::Ftx,
+            exchange: ExchangeId::Ftx,
             name: "BTC/USD".to_string(),
             native_symbol: "BTC/USD".to_string(),
             size_increment: 0.00000001,
@@ -164,7 +164,7 @@ mod tests {
 
         let mut markets = MarketVec::new();
         markets.push(Market {
-            exchange: ExchangeRef::Ftx,
+            exchange: ExchangeId::Ftx,
             name: "BTC/USD".to_string(),
             native_symbol: "BTC/USD".to_string(),
             size_increment: 0.00000001,

@@ -13,7 +13,7 @@ use crate::{
     market_data::{adapter::*, error::*},
     prelude::*,
 };
-use botvana::exchange::ExchangeRef;
+use botvana::exchange::ExchangeId;
 
 /// FTX market data
 #[derive(Default, Debug)]
@@ -29,7 +29,7 @@ pub struct FtxMetrics {
 #[async_trait(?Send)]
 impl RestMarketDataAdapter for Ftx {
     const NAME: &'static str = "ftx-rest";
-    const EXCHANGE_REF: ExchangeRef = ExchangeRef::Ftx;
+    const EXCHANGE_REF: ExchangeId = ExchangeId::Ftx;
 
     /// Fetches available markets on FTX
     async fn fetch_markets(&self) -> Result<Box<[Market]>, MarketDataError> {

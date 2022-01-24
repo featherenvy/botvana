@@ -8,13 +8,13 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use soa_derive::StructOfArray;
 
-use crate::exchange::ExchangeRef;
+use crate::exchange::ExchangeId;
 
 /// Single market information
 #[derive(Clone, Debug, StructOfArray)]
 #[soa_derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Market {
-    pub exchange: ExchangeRef,
+    pub exchange: ExchangeId,
     pub name: String,
     pub native_symbol: String,
     pub size_increment: f64,

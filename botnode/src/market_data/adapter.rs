@@ -7,13 +7,13 @@ use async_tungstenite::{async_std::connect_async, tungstenite::Message};
 use glommio::timer::sleep;
 
 use crate::{market_data::prelude::*, prelude::*};
-use botvana::{exchange::ExchangeRef, market::MarketVec};
+use botvana::{exchange::ExchangeId, market::MarketVec};
 
 /// Market data adapter trait
 #[async_trait(?Send)]
 pub trait MarketDataAdapter<const TX_CAP: usize> {
     const NAME: &'static str;
-    const EXCHANGE_REF: ExchangeRef;
+    const EXCHANGE_REF: ExchangeId;
 
     /// Fetches and returns markets information
     async fn fetch_markets(&self) -> Result<Box<MarketVec>, MarketDataError>;
@@ -74,7 +74,7 @@ pub trait WsMarketDataAdapter {
 #[async_trait(?Send)]
 pub trait RestMarketDataAdapter {
     const NAME: &'static str;
-    const EXCHANGE_REF: ExchangeRef;
+    const EXCHANGE_REF: ExchangeId;
 
     /// Fetch orderbook snapshot for given symbol
     async fn fetch_orderbook_snapshot(
@@ -92,7 +92,7 @@ where
     T: WsMarketDataAdapter + RestMarketDataAdapter,
 {
     const NAME: &'static str = <T as RestMarketDataAdapter>::NAME;
-    const EXCHANGE_REF: ExchangeRef = <T as RestMarketDataAdapter>::EXCHANGE_REF;
+    const EXCHANGE_REF: ExchangeId = <T as RestMarketDataAdapter>::EXCHANGE_REF;
 
     /// Fetches availables markets on Binance
     async fn fetch_markets(&self) -> Result<Box<MarketVec>, MarketDataError> {

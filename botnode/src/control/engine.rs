@@ -1,4 +1,4 @@
-use botvana::exchange::ExchangeRef;
+use botvana::exchange::ExchangeId;
 
 use crate::{
     audit::engine::*, engine::*, exchange::engine::*, indicator::engine::*, market_data::*,
@@ -133,7 +133,7 @@ impl ControlEngine {
                     MarketDataEngine::<_, 4>::new(self.data_rx(), ftx_adapter);
 
                 self.status_rxs.insert(
-                    EngineType::MarketDataEngine(ExchangeRef::Ftx),
+                    EngineType::MarketDataEngine(ExchangeId::Ftx),
                     market_data_engine.status_rx(),
                 );
 
@@ -153,7 +153,7 @@ impl ControlEngine {
                 });
 
                 self.status_rxs.insert(
-                    EngineType::MarketDataEngine(ExchangeRef::BinanceSpot),
+                    EngineType::MarketDataEngine(ExchangeId::BinanceSpot),
                     market_data_engine.status_rx(),
                 );
 

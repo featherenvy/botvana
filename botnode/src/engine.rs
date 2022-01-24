@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use botvana::exchange::ExchangeRef;
+use botvana::exchange::ExchangeId;
 
 /// Botnode engines type
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -8,7 +8,7 @@ pub enum EngineType {
     ControlEngine,
     ExchangeEngine,
     IndicatorEngine,
-    MarketDataEngine(ExchangeRef),
+    MarketDataEngine(ExchangeId),
     TradingEngine,
 }
 

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Deserializer};
 
-use botvana::{exchange::ExchangeRef, market::orderbook::*};
+use botvana::{exchange::ExchangeId, market::orderbook::*};
 
 #[derive(Debug, Deserialize)]
 pub struct OrderbookSnapshot {
@@ -44,7 +44,7 @@ impl<'a> TryFrom<&SymbolInfo<'a>> for botvana::market::Market {
         let price_increment = 1.0 / 10_i32.pow(symbol_info.quote_asset_precision as u32) as f64;
 
         Ok(Self {
-            exchange: ExchangeRef::BinanceSpot,
+            exchange: ExchangeId::BinanceSpot,
             name: symbol_info.symbol.to_string(),
             native_symbol: symbol_info.symbol.to_string(),
             size_increment,
