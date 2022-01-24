@@ -4,6 +4,8 @@ use super::engine::*;
 use super::BotnodeStatus;
 use crate::prelude::*;
 
+const BOTVANA_SERVER_READ_TIMEOUT: u64 = 50;
+
 /// Runs the Botnode control engine that runs the connection to Botvana
 ///
 /// This connects to Botvana server on a given address, sends the Hello
@@ -68,11 +70,18 @@ pub(crate) async fn run_control_loop(
         }
 
         let msg =
-            glommio::timer::timeout(Duration::from_micros(50), async { Ok(framed.next().await) });
+            glommio::timer::timeout(Duration::from_micros(BOTVANA_SERVER_READ_TIMEOUT), async {
+                Ok(framed.next().await)
+            })
+            .await;
 
         // Check if the stream has yielded a value
-        if let Ok(msg) = msg.await {
-            debug!("got msg from botvana-server: {msg:?}");
+        match msg {
+            Ok(None) => return Ok(()),
+            Ok(msg) => {
+                debug!("got msg from botvana-server: {msg:?}");
+            }
+            _ => continue,
         }
     }
 }
@@ -80,10 +89,7 @@ pub(crate) async fn run_control_loop(
 /// Opens a connection to botvana server
 async fn connect_botvana_server(
     control: &mut ControlEngine,
-) -> Result<
-    Framed<TcpStream, botvana::net::codec::BotvanaCodec>,
-    EngineError,
-> {
+) -> Result<Framed<TcpStream, BotvanaCodec>, EngineError> {
     control.status = BotnodeStatus::Connecting;
 
     let stream = TcpStream::connect(control.server_addr.clone())

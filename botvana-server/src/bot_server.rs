@@ -1,11 +1,10 @@
-use std::{rc::Rc, time::Duration};
+use std::{net::ToSocketAddrs, rc::Rc, time::Duration};
 
-use async_codec::Framed;
-use async_std::net::ToSocketAddrs;
 use futures::{prelude::*, stream::StreamExt};
 use glommio::{enclose, net::TcpListener, net::TcpStream, sync::Semaphore, timer::sleep, Task};
 use tracing::{debug, error, info, warn};
 
+use crate::config::BotnodeConfig;
 use botvana::{
     cfg::{BotConfiguration, PeerBot},
     net::{
@@ -14,8 +13,6 @@ use botvana::{
     },
     state,
 };
-
-use crate::config::BotnodeConfig;
 
 const ACTIVITY_TIMEOUT_SECS: u64 = 15;
 
@@ -64,7 +61,7 @@ where
                     .acquire_permit(1)
                     .await
                     .expect("failed to acquire permit");
-                let mut stream = Framed::new(stream, codec::BotvanaCodec);
+                let mut stream = codec::Framed::new(stream, codec::BotvanaCodec);
 
                 if let Err(e) = handle_connection(&mut stream, global_state, botnode_configs).await {
                     error!("Error while handling the connection: {}", e);
@@ -77,7 +74,7 @@ where
 
 /// Handle an incoming connection from the bot
 pub async fn handle_connection(
-    stream: &mut Framed<TcpStream, codec::BotvanaCodec>,
+    stream: &mut codec::Framed<TcpStream, codec::BotvanaCodec>,
     global_state: state::GlobalState,
     botnode_configs: Box<[BotnodeConfig]>,
 ) -> Result<(), BotServerError> {
@@ -118,7 +115,7 @@ pub async fn handle_connection(
 
 /// Process one message coming from the bot over the network
 pub async fn process_bot_message(
-    stream: &mut Framed<TcpStream, codec::BotvanaCodec>,
+    stream: &mut codec::Framed<TcpStream, codec::BotvanaCodec>,
     conn_bot_id: &mut Option<BotId>,
     global_state: state::GlobalState,
     botnode_configs: &[BotnodeConfig],
