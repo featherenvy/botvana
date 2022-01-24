@@ -32,36 +32,35 @@ fn main() {
     let state_ref = state.clone();
 
     LocalExecutorBuilder::new()
-        .pin_to_cpu(0)
         .spawn(|| async move {
-            tide::log::start();
-            let mut app = tide::with_state(state_ref);
+            {
+                let state_ref = state_ref.clone();
+                glommio::Task::local(async move {
+                    tide::log::start();
+                    let mut app = tide::with_state(state_ref);
 
-            app.at("/")
-                .get(|req: Request<state::GlobalState>| async move {
-                    let state = req.state();
-                    let connected_bots: Vec<_> = state
-                        .connected_bots()
+                    app.at("/")
+                        .get(|req: Request<state::GlobalState>| async move {
+                            let state = req.state();
+                            let connected_bots: Vec<_> = state
+                                .connected_bots()
+                                .await
+                                .iter()
+                                .map(|bot_id| bot_id.0)
+                                .collect();
+
+                            Ok(json!({
+                                "connected_bots": connected_bots,
+                            }))
+                        });
+
+                    app.listen("127.0.0.1:8080")
                         .await
-                        .iter()
-                        .map(|bot_id| bot_id.0)
-                        .collect();
+                        .expect("Tide listener failed");
+                }).detach();
+            }
 
-                    Ok(json!({
-                        "connected_bots": connected_bots,
-                    }))
-                });
-
-            app.listen("127.0.0.1:8080")
-                .await
-                .expect("Tide listener failed");
-        })
-        .unwrap();
-
-    let state_ref = state.clone();
-    LocalExecutorBuilder::new()
-        .pin_to_cpu(1)
-        .spawn(|| async move {
+            let state_ref = state_ref.clone();
             ws::run_listener(config.ws_server, state_ref).await;
         })
         .unwrap();
