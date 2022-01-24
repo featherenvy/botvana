@@ -15,7 +15,6 @@ pub mod prelude {
     pub use std::time::Duration;
 
     pub use arrayvec::ArrayVec;
-    pub use async_codec::Framed;
     pub use async_shutdown::Shutdown;
     pub use async_trait::async_trait;
     pub use chrono::{DateTime, Utc};
@@ -37,7 +36,7 @@ pub mod prelude {
             Market,
         },
         net::{
-            codec::BotvanaCodec,
+            codec::{BotvanaCodec, Framed},
             msg::{BotId, Message},
         },
     };

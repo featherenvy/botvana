@@ -3,6 +3,8 @@ use tracing::{error, trace};
 
 use super::msg::*;
 
+pub use async_codec::Framed;
+
 #[derive(Debug)]
 pub struct BotvanaCodec;
 

@@ -81,7 +81,7 @@ pub(crate) async fn run_control_loop(
 async fn connect_botvana_server(
     control: &mut ControlEngine,
 ) -> Result<
-    async_codec::Framed<glommio::net::TcpStream, botvana::net::codec::BotvanaCodec>,
+    Framed<TcpStream, botvana::net::codec::BotvanaCodec>,
     EngineError,
 > {
     control.status = BotnodeStatus::Connecting;

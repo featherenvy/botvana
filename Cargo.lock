@@ -652,7 +652,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "arrayvec 0.7.2",
- "async-codec",
  "async-shutdown",
  "async-trait",
  "async-tungstenite",
