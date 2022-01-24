@@ -1,6 +1,7 @@
 //! Orderbook
 
 use rust_decimal::prelude::*;
+use serde::{Deserialize, Serialize};
 
 /// Trait representing an orderbook API
 pub trait UpdateOrderbook<T> {
@@ -14,7 +15,7 @@ pub trait UpdateOrderbook<T> {
 }
 
 /// Plain orderbook with bids and asks
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct PlainOrderbook<T> {
     pub bids: PriceLevelsVec<T>,
     pub asks: PriceLevelsVec<T>,
@@ -76,7 +77,7 @@ impl UpdateOrderbook<Decimal> for PlainOrderbook<Decimal> {
 }
 
 /// Columnar struct of price levels
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct PriceLevelsVec<T> {
     pub price_vec: Vec<T>,
     pub size_vec: Vec<T>,

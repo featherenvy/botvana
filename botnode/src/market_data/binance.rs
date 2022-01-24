@@ -201,13 +201,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_fetch_orderbook_snapshot() {
-        let b = Binance::default();
-
-        smol::block_on(b.fetch_orderbook_snapshot("ETHBTC")).unwrap();
-    }
-
-    #[test]
     fn test_process_ws_msg_err() {
         let b = Binance::default();
 

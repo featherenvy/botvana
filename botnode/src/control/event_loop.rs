@@ -53,7 +53,9 @@ pub(crate) async fn run_control_loop(
             }
         }
 
-        for (_exchange, rx) in control.market_data_rxs.iter() {
+        for (exchange, rx) in control.market_data_rxs.iter() {
+            let exchange = exchange.parse::<botvana::exchange::ExchangeId>().unwrap();
+
             match rx.try_pop() {
                 Some(MarketEvent {
                     r#type: MarketEventType::Markets(markets),
@@ -61,6 +63,16 @@ pub(crate) async fn run_control_loop(
                 }) => {
                     framed
                         .send(Message::market_list(*markets.clone()))
+                        .await
+                        .unwrap();
+                    last_activity = SystemTime::now();
+                }
+                Some(MarketEvent {
+                    r#type: MarketEventType::OrderbookUpdate(market, orderbook),
+                    ..
+                }) => {
+                    framed
+                        .send(Message::orderbook(exchange, &market, *orderbook))
                         .await
                         .unwrap();
                     last_activity = SystemTime::now();

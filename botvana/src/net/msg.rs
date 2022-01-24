@@ -2,7 +2,11 @@ use std::{num::ParseIntError, str::FromStr, time::SystemTime};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{cfg::BotConfiguration, market::MarketVec};
+use crate::{
+    cfg::BotConfiguration,
+    exchange::*,
+    market::{orderbook::*, MarketVec},
+};
 
 /// Botvana protocol message
 #[derive(Serialize, Deserialize, Debug)]
@@ -30,6 +34,8 @@ pub enum Message {
     Pong(u128),
     /// List of markets that the bot has access to
     MarketList(MarketVec),
+    /// List of markets that the bot has access to
+    Orderbook(ExchangeId, Box<str>, PlainOrderbook<f64>),
     /// A set of metrics
     Metrics,
     /// Status report
@@ -61,6 +67,11 @@ impl Message {
     /// Returns new markets list message with given markets
     pub fn market_list(markets: MarketVec) -> Self {
         Self::MarketList(markets)
+    }
+
+    /// Returns new orderbook message
+    pub fn orderbook(exchange: ExchangeId, market: &str, orderbook: PlainOrderbook<f64>) -> Self {
+        Self::Orderbook(exchange, Box::from(market), orderbook)
     }
 }
 

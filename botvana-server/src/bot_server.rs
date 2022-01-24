@@ -184,6 +184,9 @@ pub async fn process_bot_message(
         Message::MarketList(markets_vec) => {
             global_state.update_markets(markets_vec);
         }
+        Message::Orderbook(exchange, market, orderbook) => {
+            global_state.update_orderbook(exchange, &market, orderbook);
+        }
         msg => {
             warn!("Unhandled message = {:?} from bot {:?}", msg, conn_bot_id);
         }
