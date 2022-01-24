@@ -87,7 +87,7 @@ pub async fn handle_connection(
                     Some(Ok(frame)) => frame,
                     _ => {
                         if let Some(conn_bot_id) = conn_bot_id {
-                            global_state.remove_bot(conn_bot_id).await;
+                            global_state.remove_bot(conn_bot_id);
                         }
 
                         if frame.is_none() {
@@ -127,7 +127,7 @@ pub async fn process_bot_message(
             // break the current connection
             if let Some(conn_bot_id) = conn_bot_id {
                 warn!("Bot {:?} sending duplicate Hello message", conn_bot_id);
-                global_state.remove_bot(conn_bot_id.clone()).await;
+                global_state.remove_bot(conn_bot_id.clone());
                 return Err(BotServerError::DuplicateHello);
             }
 
@@ -140,9 +140,9 @@ pub async fn process_bot_message(
             // connection only
             *conn_bot_id = Some(bot_id.clone());
 
-            let bots = global_state.connected_bots().await;
+            let bots = global_state.connected_bots();
 
-            global_state.add_bot(bot_id.clone()).await;
+            global_state.add_bot(bot_id.clone());
 
             let peer_bots = bots
                 .iter()
@@ -182,7 +182,7 @@ pub async fn process_bot_message(
                 .map_err(|_| BotServerError::WriteError)?;
         }
         Message::MarketList(markets_vec) => {
-            global_state.update_markets(markets_vec).await;
+            global_state.update_markets(markets_vec);
         }
         msg => {
             warn!("Unhandled message = {:?} from bot {:?}", msg, conn_bot_id);

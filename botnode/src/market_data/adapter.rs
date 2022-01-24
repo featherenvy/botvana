@@ -144,7 +144,9 @@ where
                 match msg {
                     Some(Ok(Message::Text(msg))) => match self.process_ws_msg(&msg, &mut markets) {
                         Ok(Some(event)) => {
-                            data_txs.push_value(event);
+                            data_txs
+                                .push_value(event)
+                                .map_err(MarketDataError::with_source)?;
                         }
                         Ok(None) => {}
                         Err(e) => warn!("Failed to process websocket message: {e}"),

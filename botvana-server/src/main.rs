@@ -44,7 +44,6 @@ fn main() {
                             let state = req.state();
                             let connected_bots: Vec<_> = state
                                 .connected_bots()
-                                .await
                                 .iter()
                                 .map(|bot_id| bot_id.0)
                                 .collect();

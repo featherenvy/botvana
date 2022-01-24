@@ -21,33 +21,33 @@ impl GlobalState {
     }
 
     /// Adds online bot
-    pub async fn add_bot(&self, bot_id: BotId) {
+    pub fn add_bot(&self, bot_id: BotId) {
         let mut bots = self.connected_bots.write();
 
         bots.push(bot_id);
     }
 
     /// Removes a bot (bot is offline)
-    pub async fn remove_bot(&self, bot_id: BotId) {
+    pub fn remove_bot(&self, bot_id: BotId) {
         let mut bots = self.connected_bots.write();
 
         bots.retain(|id| *id != bot_id);
     }
 
     /// Returns set of connected bots
-    pub async fn connected_bots(&self) -> Vec<BotId> {
+    pub fn connected_bots(&self) -> Vec<BotId> {
         self.connected_bots.read().to_vec()
     }
 
     /// Returns current known markets
-    pub async fn markets(&self) -> MarketVec {
+    pub fn markets(&self) -> MarketVec {
         self.markets.read().clone()
     }
 
     /// Updates markets by either adding new or updating existing
     ///
     /// Markets are matched by exchange and market name
-    pub async fn update_markets(&self, markets: MarketVec) {
+    pub fn update_markets(&self, markets: MarketVec) {
         let mut marketvec = self.markets.write();
 
         'outer: for market_update in markets.iter() {
@@ -83,11 +83,11 @@ mod tests {
     fn test_add_bot() {
         let state = GlobalState::new();
 
-        smol::block_on(state.add_bot(BotId(0)));
+        state.add_bot(BotId(0));
 
         assert_eq!(state.connected_bots.read().len(), 1);
 
-        smol::block_on(state.add_bot(BotId(1)));
+        state.add_bot(BotId(1));
 
         assert_eq!(state.connected_bots.read().len(), 2);
     }
@@ -96,24 +96,23 @@ mod tests {
     fn test_remove_bot() {
         let state = GlobalState::new();
 
-        smol::block_on(async {
-            let mut bots = state.connected_bots.write();
-            bots.push(BotId(0));
-            bots.push(BotId(1));
-            bots.push(BotId(2));
-        });
+        let mut bots = state.connected_bots.write();
+        bots.push(BotId(0));
+        bots.push(BotId(1));
+        bots.push(BotId(2));
+        drop(bots);
 
         assert_eq!(state.connected_bots.read().len(), 3);
 
-        smol::block_on(state.remove_bot(BotId(1)));
+        state.remove_bot(BotId(1));
 
         assert_eq!(state.connected_bots.read().len(), 2);
 
-        smol::block_on(state.remove_bot(BotId(2)));
+        state.remove_bot(BotId(2));
 
         assert_eq!(state.connected_bots.read().len(), 1);
 
-        smol::block_on(state.remove_bot(BotId(0)));
+        state.remove_bot(BotId(0));
 
         assert_eq!(state.connected_bots.read().len(), 0);
     }
@@ -122,14 +121,13 @@ mod tests {
     fn test_connected_bots() {
         let state = GlobalState::new();
 
-        smol::block_on(async {
-            let mut bots = state.connected_bots.write();
-            bots.push(BotId(0));
-            bots.push(BotId(1));
-            bots.push(BotId(2));
-        });
+        let mut bots = state.connected_bots.write();
+        bots.push(BotId(0));
+        bots.push(BotId(1));
+        bots.push(BotId(2));
+        drop(bots);
 
-        assert_eq!(smol::block_on(state.connected_bots()).len(), 3);
+        assert_eq!(state.connected_bots().len(), 3);
     }
 
     #[test]
@@ -151,9 +149,9 @@ mod tests {
             }),
         });
 
-        smol::block_on(state.update_markets(markets.clone()));
+        state.update_markets(markets.clone());
 
-        assert_eq!(smol::block_on(state.markets()).len(), 1);
+        assert_eq!(state.markets().len(), 1);
     }
 
     #[test]
@@ -175,11 +173,11 @@ mod tests {
             }),
         });
 
-        smol::block_on(state.update_markets(markets.clone()));
+        state.update_markets(markets.clone());
 
         assert_eq!(state.markets.read().len(), 1);
 
-        smol::block_on(state.update_markets(markets));
+        state.update_markets(markets);
 
         assert_eq!(state.markets.read().len(), 1);
     }

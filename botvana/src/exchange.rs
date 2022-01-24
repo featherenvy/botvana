@@ -26,3 +26,28 @@ impl FromStr for ExchangeId {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn exchange_id_from_str() {
+        assert_eq!(ExchangeId::Ftx, "ftx".parse::<ExchangeId>().unwrap());
+        assert_eq!(ExchangeId::Ftx, "ftx".parse::<ExchangeId>().unwrap());
+        assert_eq!(
+            ExchangeId::BinanceSpot,
+            "binance".parse::<ExchangeId>().unwrap()
+        );
+        assert_eq!(
+            ExchangeId::BinanceSpot,
+            "binance_spot".parse::<ExchangeId>().unwrap()
+        );
+    }
+
+    #[test]
+    fn exchange_id_display() {
+        assert_eq!("Ftx", format!("{}", ExchangeId::Ftx));
+        assert_eq!("BinanceSpot", format!("{}", ExchangeId::BinanceSpot));
+    }
+}

@@ -87,8 +87,8 @@ async fn send_state(
     ws_stream: &mut async_tungstenite::WebSocketStream<glommio::net::TcpStream>,
     state: &state::GlobalState,
 ) -> Result<()> {
-    let connected_bots = state.connected_bots().await;
-    let markets = state.markets().await;
+    let connected_bots = state.connected_bots();
+    let markets = state.markets();
     Ok(ws_stream
         .send(Message::Text(
             json!({
