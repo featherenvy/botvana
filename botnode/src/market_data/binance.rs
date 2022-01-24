@@ -4,7 +4,7 @@ pub(crate) mod rest;
 pub(crate) mod ws;
 
 use super::prelude::*;
-use crate::{market_data::Market, prelude::*};
+use crate::prelude::*;
 use botvana::exchange::ExchangeRef;
 
 #[derive(Debug)]
@@ -12,7 +12,6 @@ pub struct Binance {
     pub metrics: BinanceMetrics,
     cur_idx: u64,
     api_url: Box<str>,
-    symbol_map: Vec<(String, String)>,
 }
 
 impl Default for Binance {
@@ -21,7 +20,6 @@ impl Default for Binance {
             api_url: Box::from("https://api.binance.com"),
             cur_idx: 0,
             metrics: BinanceMetrics::default(),
-            symbol_map: vec![],
         }
     }
 }

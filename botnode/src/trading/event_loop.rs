@@ -9,9 +9,12 @@ pub fn run_loop(
     indicator_rx: spsc_queue::Consumer<IndicatorEvent>,
     _exchange_tx: spsc_queue::Producer<ExchangeRequest>,
     exchange_rx: spsc_queue::Consumer<ExchangeEvent>,
+    status_tx: spsc_queue::Producer<EngineStatus>,
     shutdown: Shutdown,
 ) -> Result<(), EngineError> {
     let mut prices = HashMap::new();
+
+    status_tx.try_push(EngineStatus::Running);
 
     loop {
         if shutdown.shutdown_started() {

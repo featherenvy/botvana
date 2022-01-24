@@ -40,7 +40,12 @@ impl<A: ExchangeAdapter> Engine for ExchangeEngine<A> {
     async fn start(self, shutdown: Shutdown) -> Result<(), EngineError> {
         info!("Starting order engine");
 
-        run_event_loop(self.config_rx, shutdown)?;
+        self.status_tx.try_push(EngineStatus::Booting);
+
+        let config = await_value(self.config_rx);
+        info!("got config = {config:?}");
+
+        run_event_loop(self.status_tx, shutdown)?;
 
         Ok(())
     }
@@ -53,11 +58,10 @@ impl<A: ExchangeAdapter> EngineData for ExchangeEngine<A> {
 
 /// Runs the order event loop
 fn run_event_loop(
-    config_rx: spsc_queue::Consumer<BotConfiguration>,
+    status_tx: spsc_queue::Producer<EngineStatus>,
     shutdown: Shutdown,
 ) -> Result<(), EngineError> {
-    let config = await_value(config_rx);
-    info!("got config = {config:?}");
+    status_tx.try_push(EngineStatus::Running);
 
     loop {
         if shutdown.shutdown_started() {

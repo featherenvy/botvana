@@ -1,3 +1,2 @@
-use crate::prelude::*;
-
+#[derive(Debug, Clone)]
 struct Ftx;

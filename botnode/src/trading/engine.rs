@@ -46,11 +46,14 @@ impl Engine for TradingEngine {
     async fn start(mut self, shutdown: Shutdown) -> Result<(), EngineError> {
         info!("Starting trading engine");
 
+        self.status_tx.try_push(EngineStatus::Booting);
+
         super::event_loop::run_loop(
             self.market_data_rxs,
             self.indicator_rx,
             self.exchange_tx,
             self.exchange_rx,
+            self.status_tx,
             shutdown,
         )
     }

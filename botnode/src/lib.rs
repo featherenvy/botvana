@@ -31,18 +31,21 @@ pub mod prelude {
 
     pub use botvana::{
         cfg::{BotConfiguration, IndicatorConfig},
-        market::orderbook::{PlainOrderbook, PriceLevelsVec, UpdateOrderbook},
+        market::{
+            event::{MarketEvent, MarketEventType},
+            orderbook::{PlainOrderbook, PriceLevelsVec, UpdateOrderbook},
+            Market,
+        },
         net::{
             codec::BotvanaCodec,
             msg::{BotId, Message},
         },
     };
 
-    pub use crate::channels::*;
-    pub use crate::engine::*;
-    pub use crate::error::{EngineError, StartEngineError};
-    pub use crate::indicator::IndicatorEvent;
-    pub use crate::market_data::{MarketEvent, MarketEventType};
-
-    pub type DynBoxError = Box<dyn std::error::Error>;
+    pub use crate::{
+        channels::*,
+        engine::*,
+        error::{EngineError, StartEngineError},
+        indicator::IndicatorEvent,
+    };
 }

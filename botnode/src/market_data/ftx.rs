@@ -10,7 +10,7 @@ use serde_json::json;
 use surf::Url;
 
 use crate::{
-    market_data::{adapter::*, error::*, Market},
+    market_data::{adapter::*, error::*},
     prelude::*,
 };
 use botvana::exchange::ExchangeRef;
@@ -64,7 +64,7 @@ impl RestMarketDataAdapter for Ftx {
 
     async fn fetch_orderbook_snapshot(
         &self,
-        symbol: &str,
+        _symbol: &str,
     ) -> Result<PlainOrderbook<f64>, MarketDataError> {
         Ok(PlainOrderbook::<f64>::new())
     }

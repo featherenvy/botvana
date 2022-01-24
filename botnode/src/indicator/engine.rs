@@ -43,11 +43,13 @@ impl Engine for IndicatorEngine {
     async fn start(mut self, shutdown: Shutdown) -> Result<(), EngineError> {
         info!("Starting indicator engine");
 
+        self.status_tx.try_push(EngineStatus::Booting);
+
         let config = await_value(self.config_rx);
         debug!("config = {config:?}");
         self.indicators_config = config.indicators;
 
-        super::event_loop::run_indicator_loop(self.market_data_rxs, shutdown).await
+        super::event_loop::run_indicator_loop(self.market_data_rxs, self.status_tx, shutdown).await
     }
 }
 

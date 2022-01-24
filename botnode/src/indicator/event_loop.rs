@@ -26,6 +26,7 @@ impl IndicatorState {
 /// Indicator engine loop
 pub async fn run_indicator_loop(
     market_data_rxs: ConsumersMap<Box<str>, MarketEvent>,
+    status_tx: spsc_queue::Producer<EngineStatus>,
     shutdown: Shutdown,
 ) -> Result<(), EngineError> {
     let _token = shutdown
@@ -33,6 +34,8 @@ pub async fn run_indicator_loop(
         .map_err(EngineError::with_source)?;
 
     let mut indicator_state = IndicatorState::default();
+
+    status_tx.try_push(EngineStatus::Running);
 
     loop {
         if shutdown.shutdown_started() {
@@ -56,7 +59,7 @@ pub async fn run_indicator_loop(
 fn process_market_event(
     event: MarketEvent,
     indicator_state: &mut IndicatorState,
-) -> Result<(), DynBoxError> {
+) -> Result<(), EngineError> {
     match event.r#type {
         MarketEventType::Markets(markets) => {
             trace!("Received {} markets", markets.len());
@@ -85,5 +88,6 @@ fn process_market_event(
             trace!("{market_symbol} {bid}/{ask}");
         }
     }
+
     Ok(())
 }

@@ -1,13 +1,14 @@
 //! Market module
 
+pub mod event;
+pub mod orderbook;
+pub mod trade;
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use soa_derive::StructOfArray;
 
 use crate::exchange::ExchangeRef;
-
-pub mod orderbook;
-pub mod trade;
 
 /// Single market information
 #[derive(Clone, Debug, StructOfArray)]
