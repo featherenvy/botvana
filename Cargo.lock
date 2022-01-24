@@ -685,6 +685,7 @@ dependencies = [
  "chrono",
  "criterion",
  "futures",
+ "parking_lot",
  "rust_decimal",
  "serde",
  "smol",

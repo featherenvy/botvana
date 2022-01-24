@@ -4,8 +4,6 @@ version = "0.1.0"
 authors = ["featherenvy <featherenvy@protonmail.com>"]
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 anyhow = "1.0.51"
 arrayvec = "0.7.2"
@@ -14,7 +12,6 @@ async-trait = "0.1.52"
 async-tungstenite = { version = "0.16.1", features = ["async-native-tls"] }
 chrono = { version = "0.4.19", features = ["serde"] }
 futures = "0.3"
-#glommio = "0.6.0"
 glommio = { git = "https://github.com/DataDog/glommio.git" }
 serde = { version = "1.0.134", features = ["derive"] }
 serde_json = "1.0.72"

@@ -4,8 +4,6 @@ version = "0.1.0"
 authors = ["featherenvy <featherenvy@protonmail.com>"]
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 async-shutdown = "0.1.2"
 async-tungstenite = { version = "0.16.0", features = ["async-native-tls"] }

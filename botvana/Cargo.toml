@@ -4,13 +4,11 @@ version = "0.1.0"
 authors = ["featherenvy <featherenvy@protonmail.com>"]
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 async-codec = "0.4.1"
-async-std = { version = "1.10.0", features = ["attributes"] }
 bincode = "1.3.3"
 chrono = "0.4.19"
+parking_lot = "0.11.2"
 rust_decimal = "1.18.0"
 serde = { version = "1.0.130", features = ["derive"] }
 soa_derive = "0.11.0"

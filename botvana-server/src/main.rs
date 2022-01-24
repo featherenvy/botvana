@@ -57,7 +57,8 @@ fn main() {
                     app.listen("127.0.0.1:8080")
                         .await
                         .expect("Tide listener failed");
-                }).detach();
+                })
+                .detach();
             }
 
             let state_ref = state_ref.clone();
