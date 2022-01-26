@@ -32,7 +32,7 @@ pub mod prelude {
         cfg::{BotConfiguration, IndicatorConfig},
         market::{
             event::{MarketEvent, MarketEventType},
-            orderbook::{PlainOrderbook, PriceLevelsVec, UpdateOrderbook},
+            orderbook::*,
             Market,
         },
         net::{

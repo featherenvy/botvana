@@ -1,19 +1,23 @@
+use std::{collections::HashMap, thread::spawn};
+
 use crossbeam_channel::unbounded;
 use eframe::{egui, epi};
 use serde::Deserialize;
-use std::thread::spawn;
 use tracing::{debug, info};
 use tungstenite::{connect, Message};
 use url::Url;
 
-use botvana::market::{orderbook::PlainOrderbook, MarketVec};
+use botvana::{
+    exchange::*,
+    market::{orderbook::*, MarketVec},
+};
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 pub struct StationApp {
     bots: Vec<u16>,
     markets: MarketVec,
     _latencies: Vec<u64>,
-    _orderbooks: Vec<PlainOrderbook<f64>>,
+    orderbooks: Vec<Orderbook<f64>>,
 
     ws_rx: crossbeam_channel::Receiver<WebsocketMessage>,
     ws_tx: crossbeam_channel::Sender<WebsocketMessage>,
@@ -27,7 +31,7 @@ impl Default for StationApp {
             bots: vec![],
             markets: MarketVec::new(),
             _latencies: vec![],
-            _orderbooks: vec![],
+            orderbooks: vec![],
             ws_rx,
             ws_tx,
         }
@@ -71,6 +75,7 @@ impl epi::App for StationApp {
         });
     }
 
+
     /// Called each time the UI needs repainting, which may be many times per second.
     /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
     fn update(&mut self, ctx: &egui::CtxRef, _frame: &epi::Frame) {
@@ -79,6 +84,7 @@ impl epi::App for StationApp {
             Ok(msg) => {
                 self.bots = msg.connected_bots;
                 self.markets = msg.markets;
+                self.orderbooks = msg.orderbooks;
             }
             _ => {}
         }
@@ -114,15 +120,19 @@ impl epi::App for StationApp {
             ui.heading("Markets");
 
             egui::ScrollArea::vertical().show(ui, |ui| {
-                egui::Grid::new("markets-overview").show(ui, |ui| {
-                    for market in self.markets.iter() {
+                egui::Grid::new("markets-overview").spacing((8.0, 8.0)).striped(true).show(ui, |ui| {
+                    for market in self.orderbooks.iter() {
                         ui.label(market.exchange.to_string());
-                        ui.label(market.name);
+                        ui.label(&*market.market);
+                        ui.label(&market.bids.price_vec.last().unwrap_or(&0.0).to_string());
+                        ui.label(&market.asks.price_vec.first().unwrap_or(&0.0).to_string());
                         ui.end_row();
                     }
                 });
             });
         });
+
+                    ctx.request_repaint();
     }
 }
 
@@ -131,4 +141,5 @@ impl epi::App for StationApp {
 struct WebsocketMessage {
     connected_bots: Vec<u16>,
     markets: MarketVec,
+    orderbooks: Vec<Orderbook<f64>>,
 }

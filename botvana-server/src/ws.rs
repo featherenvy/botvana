@@ -22,7 +22,8 @@ use crate::config;
 use botvana::state;
 
 const MAX_CONNECTIONS: u64 = 1024;
-const SNAPSHOT_TICK_INTERVAL_MS: u64 = 1000;
+const SNAPSHOT_TICK_INTERVAL_MS: u64 = 500;
+const READ_TIMEOUT_US: u64 = 500;
 
 /// Runs TCP listener loop and spawn new task for each incoming connection.
 pub async fn run_listener(
@@ -71,12 +72,13 @@ async fn handle_connection(
     let mut last_state = Instant::now();
 
     loop {
-        match ws_stream.next().await {
-            Some(_) => {}
-            None => return Ok(()),
-        }
+        let _ = glommio::timer::timeout(Duration::from_micros(READ_TIMEOUT_US), async {
+            ws_stream.next().await;
+            Ok(())
+        })
+        .await;
 
-        if last_state.elapsed() > Duration::from_millis(SNAPSHOT_TICK_INTERVAL_MS) {
+        if last_state.elapsed() >= Duration::from_millis(SNAPSHOT_TICK_INTERVAL_MS) {
             send_state(&mut ws_stream, &global_state).await?;
             last_state = Instant::now();
         }

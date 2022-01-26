@@ -1,5 +1,7 @@
 //! Orderbook
 
+use crate::exchange::ExchangeId;
+
 use rust_decimal::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -73,6 +75,39 @@ impl UpdateOrderbook<Decimal> for PlainOrderbook<Decimal> {
         self.bids.update(bids);
         self.asks.update(asks);
         self.time = time;
+    }
+}
+
+/// Orderbook with market name and exchange with bids and asks
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct Orderbook<T> {
+    pub bids: PriceLevelsVec<T>,
+    pub asks: PriceLevelsVec<T>,
+    pub time: f64,
+    pub exchange: ExchangeId,
+    pub market: Box<str>,
+}
+
+impl<T> Orderbook<T> {
+    /// Returns new empty orderbook with time set to 0
+    pub fn new(exchange: ExchangeId, market: Box<str>) -> Self {
+        Self {
+            bids: PriceLevelsVec::new(),
+            asks: PriceLevelsVec::new(),
+            time: 0.0,
+            exchange,
+            market,
+        }
+    }
+}
+
+impl<T> From<Orderbook<T>> for PlainOrderbook<T> {
+    fn from(orderbook: Orderbook<T>) -> Self {
+        Self {
+            bids: orderbook.bids,
+            asks: orderbook.asks,
+            time: orderbook.time,
+        }
     }
 }
 

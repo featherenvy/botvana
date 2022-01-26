@@ -71,10 +71,14 @@ pub(crate) async fn run_control_loop(
                     r#type: MarketEventType::OrderbookUpdate(market, orderbook),
                     ..
                 }) => {
-                    framed
-                        .send(Message::orderbook(exchange, &market, *orderbook))
-                        .await
-                        .unwrap();
+                    let orderbook = Orderbook {
+                        exchange,
+                        market,
+                        bids: orderbook.bids,
+                        asks: orderbook.asks,
+                        time: orderbook.time,
+                    };
+                    framed.send(Message::orderbook(orderbook)).await.unwrap();
                     last_activity = SystemTime::now();
                 }
                 Some(_) | None => {}

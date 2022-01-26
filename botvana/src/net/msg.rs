@@ -35,7 +35,7 @@ pub enum Message {
     /// List of markets that the bot has access to
     MarketList(MarketVec),
     /// List of markets that the bot has access to
-    Orderbook(ExchangeId, Box<str>, PlainOrderbook<f64>),
+    Orderbook(Orderbook<f64>),
     /// A set of metrics
     Metrics,
     /// Status report
@@ -70,8 +70,8 @@ impl Message {
     }
 
     /// Returns new orderbook message
-    pub fn orderbook(exchange: ExchangeId, market: &str, orderbook: PlainOrderbook<f64>) -> Self {
-        Self::Orderbook(exchange, Box::from(market), orderbook)
+    pub fn orderbook(orderbook: Orderbook<f64>) -> Self {
+        Self::Orderbook(orderbook)
     }
 }
 

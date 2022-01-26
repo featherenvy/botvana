@@ -100,8 +100,24 @@ impl GlobalState {
         orderbooks.get(&(exchange, symbol)).cloned()
     }
 
-    pub fn orderbooks(&self) -> HashMap<(ExchangeId, u32), PlainOrderbook<f64>> {
-        self.orderbooks.read().clone()
+    pub fn orderbooks(&self) -> Box<[Orderbook<f64>]> {
+        let table = &self.symbol_table.read().table;
+
+        self.orderbooks
+            .read()
+            .iter()
+            .map(|((exchange, market_id), orderbook)| {
+                let market = table.get(*market_id as usize).cloned().unwrap();
+
+                Orderbook {
+                    exchange: *exchange,
+                    market: Box::from(market),
+                    bids: orderbook.bids.clone(),
+                    asks: orderbook.asks.clone(),
+                    time: orderbook.time,
+                }
+            })
+            .collect()
     }
 }
 
