@@ -99,6 +99,10 @@ impl GlobalState {
         let orderbooks = self.orderbooks.read();
         orderbooks.get(&(exchange, symbol)).cloned()
     }
+
+    pub fn orderbooks(&self) -> HashMap<(ExchangeId, u32), PlainOrderbook<f64>> {
+        self.orderbooks.read().clone()
+    }
 }
 
 impl Default for GlobalState {
@@ -307,10 +311,14 @@ mod tests {
         orderbooks.insert((ExchangeId::Ftx, 0 as u32), orderbook.clone());
         let state = GlobalState {
             orderbooks: Arc::new(RwLock::new(orderbooks)),
-            ..GlobalState::default()
+            ..GlobalState::new()
         };
 
         state.get_orderbook(ExchangeId::Ftx, market).unwrap();
+
+        assert!(state.get_orderbook(ExchangeId::BinanceSpot, market).is_none());
+
+        assert!(state.get_orderbook(ExchangeId::Ftx, "eth/eur").is_none());
     }
 
     #[test]

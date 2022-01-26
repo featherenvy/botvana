@@ -3,6 +3,8 @@
 pub(crate) mod rest;
 pub(crate) mod ws;
 
+use chrono::TimeZone;
+
 use super::prelude::*;
 use crate::prelude::*;
 use botvana::exchange::ExchangeId;
@@ -147,7 +149,6 @@ fn process_data_ws_message(
     let data = ws_msg;
     match data {
         ws::WsMsg::Trade(trade) => {
-            use chrono::TimeZone;
             let dt = Utc.timestamp(trade.trade_time as i64, 0);
             let symbol = trade.symbol;
             let trade = botvana::market::trade::Trade::new(trade.price, trade.size, dt);

@@ -89,11 +89,14 @@ async fn send_state(
 ) -> Result<()> {
     let connected_bots = state.connected_bots();
     let markets = state.markets();
+    let orderbooks = state.orderbooks();
+
     Ok(ws_stream
         .send(Message::Text(
             json!({
                 "connected_bots": connected_bots,
-                "markets": markets
+                "markets": markets,
+                "orderbooks": orderbooks,
             })
             .to_string(),
         ))
