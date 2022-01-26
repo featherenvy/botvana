@@ -7,10 +7,7 @@ use tracing::{debug, info};
 use tungstenite::{connect, Message};
 use url::Url;
 
-use botvana::{
-    exchange::*,
-    market::{orderbook::*, MarketVec},
-};
+use botvana::market::{orderbook::*, MarketVec};
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 pub struct StationApp {
@@ -75,7 +72,6 @@ impl epi::App for StationApp {
         });
     }
 
-
     /// Called each time the UI needs repainting, which may be many times per second.
     /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
     fn update(&mut self, ctx: &egui::CtxRef, _frame: &epi::Frame) {
@@ -118,21 +114,32 @@ impl epi::App for StationApp {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Markets");
+            ui.separator();
 
             egui::ScrollArea::vertical().show(ui, |ui| {
-                egui::Grid::new("markets-overview").spacing((8.0, 8.0)).striped(true).show(ui, |ui| {
-                    for market in self.orderbooks.iter() {
-                        ui.label(market.exchange.to_string());
-                        ui.label(&*market.market);
-                        ui.label(&market.bids.price_vec.last().unwrap_or(&0.0).to_string());
-                        ui.label(&market.asks.price_vec.first().unwrap_or(&0.0).to_string());
+                egui::Grid::new("markets-overview")
+                    .striped(true)
+                    .show(ui, |ui| {
+                        ui.strong("Exchange");
+                        ui.strong("Market");
+                        ui.strong("Bid");
+                        ui.strong("Ask");
                         ui.end_row();
-                    }
-                });
+
+                        for market in self.orderbooks.iter() {
+                            ui.label(market.exchange.to_string());
+                            ui.label(&*market.market);
+                            ui.monospace(&market.bids.price_vec.last().unwrap_or(&0.0).to_string());
+                            ui.monospace(
+                                &market.asks.price_vec.first().unwrap_or(&0.0).to_string(),
+                            );
+                            ui.end_row();
+                        }
+                    });
             });
         });
 
-                    ctx.request_repaint();
+        ctx.request_repaint();
     }
 }
 
