@@ -316,7 +316,9 @@ mod tests {
 
         state.get_orderbook(ExchangeId::Ftx, market).unwrap();
 
-        assert!(state.get_orderbook(ExchangeId::BinanceSpot, market).is_none());
+        assert!(state
+            .get_orderbook(ExchangeId::BinanceSpot, market)
+            .is_none());
 
         assert!(state.get_orderbook(ExchangeId::Ftx, "eth/eur").is_none());
     }
