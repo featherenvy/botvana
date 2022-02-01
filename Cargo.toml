@@ -5,6 +5,7 @@ members = [
 	"botvana-server",
 	"research/async-runtime-bench",
 	"research/engine-channels-bench",
+	"research/tokio-thread-per-core",
 	"server-test",
 	"station-egui",
 ]

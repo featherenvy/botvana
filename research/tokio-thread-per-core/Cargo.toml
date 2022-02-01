@@ -1,0 +1,12 @@
+[package]
+name = "tokio-thread-per-core"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+affinity = "0.1.2"
+crossbeam = "0.8.1"
+libc = "0.2.115"
+tokio = { version = "1.15.0", features = ["rt"] }
