@@ -11,6 +11,8 @@ services:
       - 7978
       - 7979
       - 8080
+    ports:
+      - 7979:7979
     command: cargo r --bin botvana-server
     ulimits:
       memlock:
