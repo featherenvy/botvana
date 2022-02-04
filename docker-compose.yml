@@ -48,3 +48,12 @@ services:
     ports:
       - 8080:8080
 
+  serum-vial:
+    image: tardisdev/serum-vial:latest
+    restart: always
+    environment:
+      POSTGRES_USER: botvana
+      POSTGRES_PASSWORD: example
+    ports:
+      - 443:443
+
