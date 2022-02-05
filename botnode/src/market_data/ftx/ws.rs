@@ -35,7 +35,7 @@ pub struct OrderbookMsg<'a> {
     pub action: &'a str,
 }
 
-/// Single trade informatioe
+/// Single trade information
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct Trade<'a> {
     pub id: i64,
