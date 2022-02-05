@@ -1,10 +1,7 @@
 use std::{env::var, str::FromStr};
 
 use solana_client::rpc_client::RpcClient;
-use solana_sdk::{
-    pubkey::Pubkey,
-    commitment_config::CommitmentConfig
-};
+use solana_sdk::{commitment_config::CommitmentConfig, pubkey::Pubkey};
 
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 

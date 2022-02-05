@@ -11,7 +11,6 @@ pub struct WsMsg<'a> {
     pub market: Option<&'a str>,
     #[serde(borrow)]
     pub data: Cow<'a, Data<'a>>,
-    pub r#type: Option<String>,
 }
 
 /// Data in the websocket message
@@ -36,7 +35,7 @@ pub struct OrderbookMsg<'a> {
     pub action: &'a str,
 }
 
-/// Single trade information
+/// Single trade informatioe
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct Trade<'a> {
     pub id: i64,

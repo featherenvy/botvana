@@ -11,8 +11,8 @@ and arbitrage strategies.
 ## Principles:
 
 -   **High-performance:** Designed and architected to be high-performance from the
-    ground up. It utilizes thread-per-core architecture to take advantage of
-    modern multicore CPUs.
+    ground up. It utilizes staged event-driven architecture combined with
+    thread-per-core architecture.
 -   **Low-latency**: Currently utilizing `io_uring` for network connectivity, with
     goals to use `AF_XDP` or kernel by-pass in the future.
 -   **Reliable**: Being built in Rust provides Botvana with memory safety guarantees

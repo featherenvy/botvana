@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     cfg::BotConfiguration,
-    exchange::*,
     market::{orderbook::*, MarketVec},
 };
 

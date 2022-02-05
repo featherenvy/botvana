@@ -1,4 +1,4 @@
-use std::{collections::HashMap, thread::spawn};
+use std::thread::spawn;
 
 use crossbeam_channel::unbounded;
 use eframe::{egui, epi};
