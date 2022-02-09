@@ -1,11 +1,13 @@
 //! Serum DEX adapter implementation
 
+mod rest;
 mod ws;
 
 use std::cell::RefCell;
 
 use metered::{common::TxPerSec, time_source::StdInstant, *};
 use serde_json::json;
+use surf::Url;
 
 use crate::{
     market_data::{adapter::*, error::*},
@@ -18,9 +20,60 @@ pub struct SerumMetrics {
 }
 
 /// Serum adapter
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct Serum {
     pub metrics: SerumMetrics,
+    pub rest_url: &'static str,
+    pub ws_url: &'static str,
+}
+
+impl Default for Serum {
+    fn default() -> Self {
+        Self {
+            rest_url: "http://localhost:8000",
+            ws_url: "ws://localhost:8000/v1/ws",
+            metrics: Default::default(),
+        }
+    }
+}
+
+#[async_trait(?Send)]
+impl RestMarketDataAdapter for Serum {
+    const NAME: &'static str = "serum";
+    const EXCHANGE_REF: ExchangeId = ExchangeId::Serum;
+
+    /// Fetches available markets on Serum
+    async fn fetch_markets(&self) -> Result<Box<[Market]>, MarketDataError> {
+        let client: surf::Client = surf::Config::new()
+            .set_base_url(Url::parse(self.rest_url).map_err(MarketDataError::with_source)?)
+            .set_timeout(Some(Duration::from_secs(5)))
+            .try_into()
+            .map_err(MarketDataError::with_source)?;
+
+        let mut res = client
+            .get("/api/markets")
+            .await
+            .map_err(MarketDataError::surf_error)?;
+        let body = res
+            .body_string()
+            .await
+            .map_err(MarketDataError::surf_error)?;
+
+        let markets = serde_json::from_slice::<Box<[rest::Market]>>(body.as_bytes())
+            .map_err(MarketDataError::with_source)?;
+
+        Ok(markets
+            .iter()
+            .filter_map(|m| <Market as TryFrom<&'_ rest::Market<'_>>>::try_from(&m).ok())
+            .collect())
+    }
+
+    async fn fetch_orderbook_snapshot(
+        &self,
+        _symbol: &str,
+    ) -> Result<PlainOrderbook<f64>, MarketDataError> {
+        Ok(PlainOrderbook::<f64>::new())
+    }
 }
 
 impl WsMarketDataAdapter for Serum {
@@ -29,23 +82,16 @@ impl WsMarketDataAdapter for Serum {
     }
 
     fn ws_url(&self) -> Box<str> {
-        Box::from("wss://ftx.com/ws")
+        Box::from(self.ws_url)
     }
 
     fn subscribe_msgs(&mut self, markets: &[&str]) -> Box<[String]> {
-        markets
-            .iter()
-            .map(|market| {
-                info!("Subscribing for {market}");
+        info!("Subscribing for {markets:?}");
 
-                [
-                    json!({"op": "subscribe", "channel": "orderbook", "market": market})
-                        .to_string(),
-                    json!({"op": "subscribe", "channel": "trades", "market": market}).to_string(),
-                ]
-            })
-            .flatten()
-            .collect()
+        Box::new([
+            json!({"op": "subscribe", "channel": "level2", "markets": markets}).to_string(),
+            json!({"op": "subscribe", "channel": "trades", "markets": markets}).to_string(),
+        ])
     }
 
     /// Processes Websocket text message
@@ -69,8 +115,9 @@ impl WsMarketDataAdapter for Serum {
 
 #[inline]
 fn process_market_ws_message(
-    _ws_msg: ws::WsMsg,
+    ws_msg: ws::WsMsg,
     _markets: &mut HashMap<Box<str>, PlainOrderbook<f64>>,
 ) -> Result<Option<MarketEvent>, MarketDataError> {
+    info!("ws_msg = {ws_msg:?}");
     Ok(None)
 }

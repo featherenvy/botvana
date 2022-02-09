@@ -30,6 +30,7 @@ pub mod prelude {
 
     pub use botvana::{
         cfg::{BotConfiguration, IndicatorConfig},
+        exchange::ExchangeId,
         market::{
             event::{MarketEvent, MarketEventType},
             orderbook::*,

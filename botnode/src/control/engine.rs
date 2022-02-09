@@ -159,6 +159,22 @@ impl ControlEngine {
 
                 spawn_engine(cpu, market_data_engine, shutdown)
             }
+            "serum" => {
+                let serum_adapter = crate::market_data::serum::Serum::default();
+                let mut market_data_engine =
+                    MarketDataEngine::<_, 4>::new(self.data_rx(), serum_adapter);
+
+                market_data_rxs.iter_mut().for_each(|rx| {
+                    rx.insert(Box::from(exchange), market_data_engine.data_rx());
+                });
+
+                self.status_rxs.insert(
+                    EngineType::MarketDataEngine(ExchangeId::Serum),
+                    market_data_engine.status_rx(),
+                );
+
+                spawn_engine(cpu, market_data_engine, shutdown)
+            }
             _ => {
                 error!("Unknown exchange {exchange}");
                 Err(StartEngineError {

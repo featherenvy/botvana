@@ -1,11 +1,9 @@
-use std::borrow::Cow;
-
 use serde::Deserialize;
 
 /// Serum Websocket message
 #[derive(Debug, Clone, PartialEq, Deserialize)]
-#[serde(tag = "type")]
-#[serde(rename_all = "snake_case")]
+#[serde(tag = "type", rename_all = "snake_case")]
+#[serde()]
 pub enum WsMsg<'a> {
     #[serde(rename_all = "camelCase")]
     Subscribed {
@@ -131,7 +129,7 @@ pub enum WsMsg<'a> {
         size_remaining: &'a str,
         account: &'a str,
         account_slot: u64,
-    }
+    },
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
@@ -346,7 +344,6 @@ mod tests {
 
         serde_json::from_slice::<WsMsg>(sample.as_bytes()).unwrap();
     }
-
 
     #[test]
     fn test_parse_change() {

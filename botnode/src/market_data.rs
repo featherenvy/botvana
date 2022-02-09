@@ -4,9 +4,9 @@ pub mod engine;
 pub mod error;
 
 // Exchange adapters
-pub mod serum;
 pub mod binance;
 pub mod ftx;
+pub mod serum;
 
 pub use engine::*;
 

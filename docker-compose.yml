@@ -2,36 +2,39 @@ version: "3.9"
 
 services:
 
-  botvana-server:
-    build:
-      context: .
-      dockerfile: "./botvana-server/Dockerfile"
-    restart: always
-    expose:
-      - 7978
-      - 7979
-      - 8080
-    ports:
-      - 7979:7979
-    command: cargo r --bin botvana-server
-    ulimits:
-      memlock:
-        hard: 16477472
-        soft: 16477472
+  # botvana-server:
+  #   build:
+  #     context: .
+  #     dockerfile: "./botvana-server/Dockerfile"
+  #   restart: always
+  #   expose:
+  #     - 7978
+  #     -7979
+  #     - 8080
+  #   environment:
+  #     RUST_LOG: debug
+  #   ports:
+  #     - 7979:7979
+  #   command: cargo r --bin botvana-server
+  #   ulimits:
+  #     memlock:
+  #       hard: 16477472
+  #       soft: 16477472
 
-  botnode:
-    build:
-      context: .
-      dockerfile: "./botnode/Dockerfile"
-    restart: always
-    environment:
-      BOT_ID: 0
-      SERVER_ADDR: botvana-server:7978
-    command: cargo r --bin botnode
-    ulimits:
-      memlock:
-        hard: 16477472
-        soft: 16477472
+  # botnode:
+  #   build:
+  #     context: .
+  #     dockerfile: "./botnode/Dockerfile"
+  #   restart: always
+  #   environment:
+  #     BOT_ID: 0
+  #     SERVER_ADDR: botvana-server:7978
+  #     RUST_LOG: debug
+  #   command: cargo r --bin botnode
+  #   ulimits:
+  #     memlock:
+  #       hard: 16477472
+  #       soft: 16477472
 
   timescaledb:
     image: timescale/timescaledb:2.5.1-pg14
@@ -40,13 +43,13 @@ services:
       POSTGRES_USER: botvana
       POSTGRES_PASSWORD: example
     ports:
-      - 5432:5432
+      - 5433:5432
 
   adminer:
     image: adminer
     restart: always
     ports:
-      - 8080:8080
+      - 8081:8080
 
   serum-vial:
     image: tardisdev/serum-vial:latest
@@ -55,5 +58,5 @@ services:
       POSTGRES_USER: botvana
       POSTGRES_PASSWORD: example
     ports:
-      - 443:443
+      - 8000:8000
 
