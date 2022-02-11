@@ -43,24 +43,8 @@ pub enum WsMsg<'a> {
         best_ask: (&'a str, &'a str),
         best_bid: (&'a str, &'a str),
     },
-    #[serde(rename_all = "camelCase")]
-    L2snapshot {
-        market: &'a str,
-        timestamp: &'a str,
-        slot: u64,
-        version: u64,
-        asks: Box<[(&'a str, &'a str)]>,
-        bids: Box<[(&'a str, &'a str)]>,
-    },
-    #[serde(rename_all = "camelCase")]
-    L2update {
-        market: &'a str,
-        timestamp: &'a str,
-        slot: u64,
-        version: u64,
-        asks: Box<[(&'a str, &'a str)]>,
-        bids: Box<[(&'a str, &'a str)]>,
-    },
+    L2snapshot(L2snapshot<'a>),
+    L2update(L2update<'a>),
     #[serde(rename_all = "camelCase")]
     L3snapshot {
         market: &'a str,
@@ -134,6 +118,32 @@ pub enum WsMsg<'a> {
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
+pub struct L2snapshot<'a> {
+    pub market: &'a str,
+    pub timestamp: &'a str,
+    slot: u64,
+    version: u64,
+    #[serde(deserialize_with = "de_price_levels_from_str")]
+    pub asks: Box<[(f64, f64)]>,
+    #[serde(deserialize_with = "de_price_levels_from_str")]
+    pub bids: Box<[(f64, f64)]>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct L2update<'a> {
+    pub market: &'a str,
+    pub timestamp: &'a str,
+    slot: u64,
+    version: u64,
+    #[serde(deserialize_with = "de_price_levels_from_str")]
+    pub asks: Box<[(f64, f64)]>,
+    #[serde(deserialize_with = "de_price_levels_from_str")]
+    pub bids: Box<[(f64, f64)]>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct L3order<'a> {
     price: &'a str,
     size: &'a str,
@@ -157,6 +167,35 @@ pub struct Trade<'a> {
     size: &'a str,
     taker_account: &'a str,
     maker_account: &'a str,
+}
+
+fn de_price_levels_from_str<'de, D>(deserializer: D) -> Result<Box<[(f64, f64)]>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use std::str::FromStr;
+
+    let levels: Box<[(&'de str, &'de str)]> = Deserialize::deserialize(deserializer)?;
+
+    Ok(levels
+        .iter()
+        .map(|(a, b)| {
+            (
+                f64::from_str(a).unwrap_or_default(),
+                f64::from_str(b).unwrap_or_default(),
+            )
+        })
+        .collect::<Box<[(f64, f64)]>>())
+}
+
+fn de_from_str<'de, T, D>(deserializer: D) -> Result<T, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: std::str::FromStr,
+    <T as std::str::FromStr>::Err: std::fmt::Display,
+{
+    let s = String::deserialize(deserializer)?;
+    T::from_str(&s).map_err(serde::de::Error::custom)
 }
 
 #[cfg(test)]

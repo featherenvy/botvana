@@ -116,8 +116,57 @@ impl WsMarketDataAdapter for Serum {
 #[inline]
 fn process_market_ws_message(
     ws_msg: ws::WsMsg,
-    _markets: &mut HashMap<Box<str>, PlainOrderbook<f64>>,
+    markets: &mut HashMap<Box<str>, PlainOrderbook<f64>>,
 ) -> Result<Option<MarketEvent>, MarketDataError> {
     info!("ws_msg = {ws_msg:?}");
-    Ok(None)
+
+    match ws_msg {
+        ws::WsMsg::Subscribed { markets, channel } => {
+            info!("Subscribed {channel}: {markets:?}");
+
+            Ok(None)
+        }
+        ws::WsMsg::RecentTrades {
+            market,
+            timestamp: _,
+            trades,
+        } => {
+            info!("{market} recent trades: {trades:?}");
+
+            Ok(None)
+        }
+        ws::WsMsg::L2snapshot(mut snapshot) => {
+            let time = chrono::DateTime::parse_from_rfc3339(snapshot.timestamp)
+                .map_err(MarketDataError::with_source)?
+                .timestamp_millis();
+            let orderbook = PlainOrderbook {
+                bids: PriceLevelsVec::from_tuples_vec_unsorted(&mut snapshot.bids),
+                asks: PriceLevelsVec::from_tuples_vec_unsorted(&mut snapshot.asks),
+                time: time as f64,
+            };
+            markets.insert(Box::from(snapshot.market), orderbook.clone());
+
+            Ok(Some(MarketEvent::orderbook_update(
+                Box::from(snapshot.market),
+                Box::new(orderbook),
+            )))
+        }
+        ws::WsMsg::L2update(update) => {
+            let time = chrono::DateTime::parse_from_rfc3339(update.timestamp)
+                .map_err(MarketDataError::with_source)?
+                .timestamp_millis();
+            let orderbook = markets.get_mut(update.market).unwrap();
+            orderbook.update_with_timestamp(
+                &PriceLevelsVec::from_tuples_vec(&update.bids),
+                &PriceLevelsVec::from_tuples_vec(&update.asks),
+                time as f64,
+            );
+
+            Ok(Some(MarketEvent::orderbook_update(
+                Box::from(update.market),
+                Box::new(orderbook.clone()),
+            )))
+        }
+        _ => Ok(None),
+    }
 }
