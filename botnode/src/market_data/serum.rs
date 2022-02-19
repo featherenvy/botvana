@@ -1,9 +1,9 @@
-//! Serum DEX adapter implementation
+//! Serum DEX market data adapter implementation
 
 mod rest;
 mod ws;
 
-use std::cell::RefCell;
+use std::{cell::RefCell, convert::TryFrom};
 
 use metered::{common::TxPerSec, time_source::StdInstant, *};
 use serde_json::json;
@@ -135,6 +135,18 @@ fn process_market_ws_message(
 
             Ok(None)
         }
+        ws::WsMsg::Trade(trade) => {
+            let market = trade.market;
+            info!("{market} trade: {trade:?}");
+
+            let trade = botvana::market::trade::Trade::try_from(&trade)
+                .map_err(MarketDataError::convert_error)?;
+
+            Ok(Some(MarketEvent::trades(
+                Box::from(market),
+                Box::new([trade]),
+            )))
+        }
         ws::WsMsg::L2snapshot(mut snapshot) => {
             let time = chrono::DateTime::parse_from_rfc3339(snapshot.timestamp)
                 .map_err(MarketDataError::with_source)?
@@ -144,6 +156,7 @@ fn process_market_ws_message(
                 asks: PriceLevelsVec::from_tuples_vec_unsorted(&mut snapshot.asks),
                 time: time as f64,
             };
+
             markets.insert(Box::from(snapshot.market), orderbook.clone());
 
             Ok(Some(MarketEvent::orderbook_update(
@@ -156,6 +169,7 @@ fn process_market_ws_message(
                 .map_err(MarketDataError::with_source)?
                 .timestamp_millis();
             let orderbook = markets.get_mut(update.market).unwrap();
+
             orderbook.update_with_timestamp(
                 &PriceLevelsVec::from_tuples_vec(&update.bids),
                 &PriceLevelsVec::from_tuples_vec(&update.asks),

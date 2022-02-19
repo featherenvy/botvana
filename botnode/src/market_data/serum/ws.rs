@@ -22,18 +22,7 @@ pub enum WsMsg<'a> {
         trades: Vec<Trade<'a>>,
     },
     #[serde(rename_all = "camelCase")]
-    Trade {
-        id: &'a str,
-        market: &'a str,
-        timestamp: &'a str,
-        slot: u64,
-        version: u64,
-        side: &'a str,
-        price: &'a str,
-        size: &'a str,
-        taker_account: &'a str,
-        maker_account: &'a str,
-    },
+    Trade(Trade<'a>),
     #[serde(rename_all = "camelCase")]
     Quote {
         market: &'a str,
@@ -158,7 +147,7 @@ pub struct L3order<'a> {
 #[serde(rename_all = "camelCase")]
 pub struct Trade<'a> {
     id: &'a str,
-    market: &'a str,
+    pub market: &'a str,
     timestamp: &'a str,
     slot: u64,
     version: u64,
@@ -167,6 +156,22 @@ pub struct Trade<'a> {
     size: &'a str,
     taker_account: &'a str,
     maker_account: &'a str,
+}
+
+impl<'a> TryFrom<&Trade<'a>> for botvana::market::trade::Trade {
+    type Error = String;
+
+    fn try_from(trade: &Trade<'a>) -> Result<Self, Self::Error> {
+        Ok(Self {
+            price: trade.price.parse::<f64>().map_err(|e| e.to_string())?,
+            size: trade.size.parse::<f64>().map_err(|e| e.to_string())?,
+            received_at: std::time::Instant::now(),
+            time: trade
+                .timestamp
+                .parse()
+                .map_err(|_| format!("error parsing: {}", trade.timestamp))?,
+        })
+    }
 }
 
 fn de_price_levels_from_str<'de, D>(deserializer: D) -> Result<Box<[(f64, f64)]>, D::Error>
@@ -186,16 +191,6 @@ where
             )
         })
         .collect::<Box<[(f64, f64)]>>())
-}
-
-fn de_from_str<'de, T, D>(deserializer: D) -> Result<T, D::Error>
-where
-    D: serde::Deserializer<'de>,
-    T: std::str::FromStr,
-    <T as std::str::FromStr>::Err: std::fmt::Display,
-{
-    let s = String::deserialize(deserializer)?;
-    T::from_str(&s).map_err(serde::de::Error::custom)
 }
 
 #[cfg(test)]
@@ -446,5 +441,23 @@ mod tests {
 }"#;
 
         serde_json::from_slice::<WsMsg>(sample.as_bytes()).unwrap();
+    }
+
+    #[test]
+    fn test_try_from_trade() {
+        let trade = Trade {
+            id: "1234",
+            market: "SOL/USDC",
+            timestamp: "2022-02-19T17:39:56.626Z",
+            slot: 1,
+            version: 1,
+            side: "buy",
+            price: "1.2",
+            size: "1.0",
+            taker_account: "abc",
+            maker_account: "xyz",
+        };
+
+        botvana::market::trade::Trade::try_from(&trade).unwrap();
     }
 }

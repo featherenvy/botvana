@@ -11,6 +11,10 @@ impl MarketDataError {
         }
     }
 
+    pub fn convert_error(err: String) -> Self {
+        Self { source: err.into() }
+    }
+
     pub fn surf_error(e: surf::Error) -> Self {
         Self::with_source(SurfError { error: e })
     }
