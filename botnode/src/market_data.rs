@@ -6,6 +6,7 @@ pub mod error;
 // Exchange adapters
 pub mod binance;
 pub mod ftx;
+pub mod serum;
 
 pub use engine::*;
 

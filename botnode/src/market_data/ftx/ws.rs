@@ -11,7 +11,6 @@ pub struct WsMsg<'a> {
     pub market: Option<&'a str>,
     #[serde(borrow)]
     pub data: Cow<'a, Data<'a>>,
-    pub r#type: Option<String>,
 }
 
 /// Data in the websocket message

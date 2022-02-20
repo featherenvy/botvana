@@ -11,8 +11,8 @@ and arbitrage strategies.
 ## Principles:
 
 -   **High-performance:** Designed and architected to be high-performance from the
-    ground up. It utilizes thread-per-core architecture to take advantage of
-    modern multicore CPUs.
+    ground up. It utilizes staged event-driven architecture combined with
+    thread-per-core architecture.
 -   **Low-latency**: Currently utilizing `io_uring` for network connectivity, with
     goals to use `AF_XDP` or kernel by-pass in the future.
 -   **Reliable**: Being built in Rust provides Botvana with memory safety guarantees
@@ -91,15 +91,19 @@ In order to work with Botvana you need to have:
     ```sh
     cargo build
     ```
-4.  Run `botvana-server`
+4.  Run dependencies using `docker-compose`:
+    ```sh
+    docker-compose up -d
+    ```
+5.  Run `botvana-server`
     ```sh
     cargo r --bin botvana-server
     ```
-5.  Run `botnode`
+6.  Run `botnode`
     ```sh
     SERVER_ADDR=127.0.0.1:7978 BOT_ID=0 cargo r --bin botnode
     ```
-6.  Run `station-egui`
+7.  Run `station-egui`
     ```sh
     cargo r --bin station-egui
     ```

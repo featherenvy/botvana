@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 pub enum ExchangeId {
     Ftx,
     BinanceSpot,
+    Serum,
 }
 
 impl std::fmt::Display for ExchangeId {
@@ -22,6 +23,7 @@ impl FromStr for ExchangeId {
         match s {
             "ftx" | "Ftx" | "FTX" => Ok(ExchangeId::Ftx),
             "binance" | "Binance" | "binance_spot" | "BinanceSpot" => Ok(ExchangeId::BinanceSpot),
+            "serum" | "Serum" | "serum_dex" => Ok(ExchangeId::Serum),
             _ => Err(format!("Unknown exchange: {}", s)),
         }
     }

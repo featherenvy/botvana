@@ -1,4 +1,4 @@
-//! FTX adapter implementation
+//! FTX market data adapter implementation
 
 pub(crate) mod rest;
 pub(crate) mod ws;
@@ -171,7 +171,6 @@ fn process_market_ws_message(
                 Box::from(market),
                 Box::new(orderbook),
             )))
-            //info!("got orderbook = {:?}", orderbook);
         }
         ws::Data::None(_) => {
             info!("none data");

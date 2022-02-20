@@ -6,22 +6,13 @@ listen_address = "0.0.0.0:7979"
 
 [[botnode]]
 markets = [
-	"BTC/USD",
-	"BTC/USDT",
-	"ETH/USD",
+	"BTC/USDC",
+	"ETH/USDC",
 	"ETH/USDT",
-	"ETH/BTC",
-	"SOL/USD",
+	"SOL/USDC",
 	"SOL/USDT",
-	"SOL/BTC",
-	"DOGE/USD",
-	"DOGE/USDT",
-	"DOGE/BTC",
-	"FTT/USD",
+	"FTT/USDC",
 	"FTT/USDT",
-	"FTT/BTC",
-	"BNB/USD",
-	"BNB/USDT",
-	"BNB/BTC",
+	"BNB/USDC",
 ]
-exchanges = ["ftx", "binance"]
+exchanges = ["ftx", "binance", "serum"]
