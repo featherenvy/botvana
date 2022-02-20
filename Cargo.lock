@@ -2389,7 +2389,7 @@ dependencies = [
 [[package]]
 name = "glommio"
 version = "0.7.0"
-source = "git+https://github.com/DataDog/glommio.git#954366b1cfa462ae8b1e84928ce06d2018bfd792"
+source = "git+https://github.com/DataDog/glommio.git#9d538c426315729b80fec41f4c4f74f88522ea16"
 dependencies = [
  "ahash 0.7.6",
  "backtrace",
@@ -2416,7 +2416,7 @@ dependencies = [
  "signal-hook",
  "sketches-ddsketch",
  "smallvec",
- "socket2 0.3.19",
+ "socket2 0.4.4",
  "tracing",
  "typenum",
 ]
